@@ -36,7 +36,7 @@ gitter restore --staged src/*.cpp  # Unstage .cpp in src/
 - **Command Pattern**: Each git command is a separate class implementing `ICommand`
 - **Factory Pattern**: `CommandFactory` creates commands dynamically
 - **Singleton**: `Repository` manages global repo state
-- **Strategy**: Pluggable hashing (SHA-256) and diff algorithms
+- **Strategy**: Pluggable hashing (SHA-1/SHA-256) via `IHasher` interface
 - **Facade**: `Repository` hides internal complexity
 
 ### Core Components
@@ -57,11 +57,15 @@ src/
 ├── core/
 │   ├── Repository.*              # Repo management and discovery
 │   ├── Index.*                   # Staging area (index)
-│   ├── ObjectStore.*             # Git object storage (blobs/trees/commits)
-│   └── Hasher.*                  # SHA-256 implementation
+│   └── ObjectStore.*             # Git object storage (blobs/trees/commits)
 └── util/
     ├── Expected.hpp              # Result/error handling
-    └── Logger.*                  # Leveled logging
+    ├── Logger.*                  # Leveled logging
+    ├── IHasher.hpp               # Hash algorithm interface (Strategy)
+    ├── HasherFactory.*           # Factory for creating hashers
+    ├── Sha1Hasher.*              # SHA-1 implementation (Git default)
+    ├── Sha256Hasher.*            # SHA-256 implementation
+    └── PatternMatcher.*          # Glob pattern matching
 ```
 
 ### Repository Structure
@@ -70,8 +74,9 @@ src/
 .gitter/
 ├── HEAD                      # Current branch reference
 ├── index                     # Staging area (TSV format)
-├── objects/                  # Content-addressable storage
-│   └── <hash>               # Blob/tree/commit objects
+├── objects/                  # Content-addressable storage (zlib compressed)
+│   └── <aa>/                # First 2 chars of hash
+│       └── <bbb...>         # Remaining chars (blob/tree/commit objects)
 └── refs/
     └── heads/
         └── main             # Branch tip commit hash
@@ -87,16 +92,27 @@ tree <size>\0<entries>
 commit <size>\0<metadata>
 ```
 
-Each object is identified by SHA-256 hash of its content.
+Each object is:
+- Identified by SHA-1 hash (40 hex chars) or SHA-256 (64 hex chars)
+- Compressed with zlib before storage
+- Stored in `.gitter/objects/<aa>/<bbb...>` (2-char directory structure)
 
 ### Index Format
 
 `.gitter/index` stores staged files in TSV:
 
 ```
-path<TAB>hash<TAB>size<TAB>mtime
-src/main.cpp<TAB>abc123...<TAB>1024<TAB>1234567890
+path<TAB>hash<TAB>size<TAB>mtime<TAB>mode<TAB>ctime
+src/main.cpp<TAB>abc123...<TAB>1024<TAB>1234567890000000000<TAB>33188<TAB>1234567890000000000
 ```
+
+Fields:
+- `path` - Relative path from repo root
+- `hash` - SHA-1 or SHA-256 blob hash
+- `size` - File size in bytes
+- `mtime` - Modification time (nanoseconds)
+- `mode` - File permissions (0100644 or 0100755)
+- `ctime` - Creation/change time (nanoseconds)
 
 ## Build Instructions
 
@@ -258,8 +274,12 @@ gitter status
 - File staging with glob patterns
 - Status detection (staged/modified/untracked)
 - Unstaging with patterns
-- Blob object storage
-- SHA-256 hashing
+- Git-compliant blob object storage
+- Zlib compression for objects
+- 2-char directory structure (`.gitter/objects/<aa>/<bbb...>`)
+- SHA-1 hashing (Git default) with SHA-256 support
+- Strategy Pattern for hash algorithms
+- File permissions tracking (executable bit)
 
 ### Next Steps 🚧
 - `commit` - Create commits with trees
@@ -269,14 +289,20 @@ gitter status
 - Branch management
 - Merge detection (basic)
 
-## Contributing
+## Documentation
 
-The code is well-documented with Doxygen-style comments. Key documentation:
+The code is well-documented with Doxygen-style comments and comprehensive guides:
 
+- **[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)** - Overall project architecture and design patterns
+- **[docs/HASHER_ARCHITECTURE.md](docs/HASHER_ARCHITECTURE.md)** - Strategy Pattern for hash algorithms
+- **[docs/SHA1_STRATEGY_PATTERN.md](docs/SHA1_STRATEGY_PATTERN.md)** - Git-compliant object storage details
+- **[docs/REFACTORING_SUMMARY.md](docs/REFACTORING_SUMMARY.md)** - Recent hasher refactoring changes
+- **[docs/TREE_STORAGE.md](docs/TREE_STORAGE.md)** - How Git stores directory trees
+
+Code Documentation:
 - Class-level documentation explains purpose and usage
 - Method documentation covers parameters, return values, and algorithms
 - Inline comments explain complex logic
-- See source files for detailed implementation notes
 
 ## References
 

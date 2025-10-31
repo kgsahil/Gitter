@@ -1,4 +1,4 @@
-#include "util/Hasher.hpp"
+#include "util/Sha256Hasher.hpp"
 
 #include <array>
 #include <cstring>
@@ -20,15 +20,15 @@ constexpr std::array<uint32_t, 64> K = {
 inline uint32_t rotr(uint32_t x, uint32_t n) { return (x >> n) | (x << (32 - n)); }
 }
 
-Sha256::Sha256() { reset(); }
+Sha256Hasher::Sha256Hasher() { reset(); }
 
-void Sha256::reset() {
+void Sha256Hasher::reset() {
     state[0]=0x6a09e667; state[1]=0xbb67ae85; state[2]=0x3c6ef372; state[3]=0xa54ff53a;
     state[4]=0x510e527f; state[5]=0x9b05688c; state[6]=0x1f83d9ab; state[7]=0x5be0cd19;
     bitlen = 0; bufferLen = 0; std::memset(buffer, 0, sizeof(buffer));
 }
 
-void Sha256::update(const uint8_t* data, size_t len) {
+void Sha256Hasher::update(const uint8_t* data, size_t len) {
     for (size_t i = 0; i < len; ++i) {
         buffer[bufferLen++] = data[i];
         if (bufferLen == 64) {
@@ -39,10 +39,10 @@ void Sha256::update(const uint8_t* data, size_t len) {
     }
 }
 
-void Sha256::update(const std::vector<uint8_t>& data) { update(data.data(), data.size()); }
-void Sha256::update(const std::string& data) { update(reinterpret_cast<const uint8_t*>(data.data()), data.size()); }
+void Sha256Hasher::update(const std::vector<uint8_t>& data) { update(data.data(), data.size()); }
+void Sha256Hasher::update(const std::string& data) { update(reinterpret_cast<const uint8_t*>(data.data()), data.size()); }
 
-std::vector<uint8_t> Sha256::digest() {
+std::vector<uint8_t> Sha256Hasher::digest() {
     uint64_t totalBits = bitlen + bufferLen * 8ULL;
     buffer[bufferLen++] = 0x80;
     if (bufferLen > 56) {
@@ -64,7 +64,7 @@ std::vector<uint8_t> Sha256::digest() {
     return out;
 }
 
-void Sha256::transform(const uint8_t* chunk) {
+void Sha256Hasher::transform(const uint8_t* chunk) {
     uint32_t w[64];
     for (int i = 0; i < 16; ++i) {
         w[i] = (chunk[i*4+0] << 24) | (chunk[i*4+1] << 16) | (chunk[i*4+2] << 8) | (chunk[i*4+3]);
@@ -86,16 +86,6 @@ void Sha256::transform(const uint8_t* chunk) {
     }
     state[0] += a; state[1] += b; state[2] += c; state[3] += d;
     state[4] += e; state[5] += f; state[6] += g; state[7] += h;
-}
-
-std::string Sha256::toHex(const std::vector<uint8_t>& bytes) {
-    static const char* hex = "0123456789abcdef";
-    std::string out; out.resize(bytes.size()*2);
-    for (size_t i = 0; i < bytes.size(); ++i) {
-        out[2*i] = hex[(bytes[i] >> 4) & 0xF];
-        out[2*i+1] = hex[bytes[i] & 0xF];
-    }
-    return out;
 }
 
 }

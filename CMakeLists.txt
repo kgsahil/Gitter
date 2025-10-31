@@ -16,7 +16,9 @@ endif()
 add_library(gitter_lib
   src/util/Logger.cpp
   src/util/PatternMatcher.cpp
-  src/util/Hasher.cpp
+  src/util/HasherFactory.cpp
+  src/util/Sha1Hasher.cpp
+  src/util/Sha256Hasher.cpp
   src/cli/CommandFactory.cpp
   src/cli/CommandInvoker.cpp
   src/cli/commands/HelpCommand.cpp
@@ -35,6 +37,10 @@ add_library(gitter_lib
 target_include_directories(gitter_lib PUBLIC
   ${CMAKE_CURRENT_SOURCE_DIR}/src
 )
+
+# Find and link zlib
+find_package(ZLIB REQUIRED)
+target_link_libraries(gitter_lib PUBLIC ZLIB::ZLIB)
 
 add_executable(gitter src/main.cpp)
 target_link_libraries(gitter PRIVATE gitter_lib)

@@ -11,6 +11,8 @@
 #include "core/ObjectStore.hpp"
 #include "core/Index.hpp"
 #include "util/PatternMatcher.hpp"
+// Include concrete hasher to allow ObjectStore destructor instantiation
+#include "util/Sha1Hasher.hpp"
 
 namespace fs = std::filesystem;
 
@@ -45,11 +47,32 @@ static void addFileToIndex(const fs::path& filePath, const fs::path& root, Objec
         mtimeNs = static_cast<uint64_t>(std::chrono::duration_cast<std::chrono::nanoseconds>(adj.time_since_epoch()).count());
     }
 
+    // Get file permissions (Git tracks mode)
+    uint32_t mode = 0;
+    auto status = fs::status(filePath, ec);
+    if (!ec) {
+        auto perms = status.permissions();
+        // Git uses octal mode: 0100644 (regular file) or 0100755 (executable)
+        // Normalize to Git mode: 0100644 for regular, 0100755 for executable
+        if ((perms & fs::perms::owner_exec) != fs::perms::none ||
+            (perms & fs::perms::group_exec) != fs::perms::none ||
+            (perms & fs::perms::others_exec) != fs::perms::none) {
+            mode = 0100755; // Executable
+        } else {
+            mode = 0100644; // Regular file
+        }
+    }
+    
+    // Get ctime (creation/status change time) - approximate with mtime on most systems
+    uint64_t ctimeNs = mtimeNs; // Simplified: use mtime as ctime
+
     IndexEntry e;
     e.path = rel.generic_string();
     e.hashHex = hash;
     e.sizeBytes = sizeBytes;
     e.mtimeNs = mtimeNs;
+    e.mode = mode;
+    e.ctimeNs = ctimeNs;
     index.addOrUpdate(e);
 }
 

@@ -14,12 +14,16 @@ namespace gitter {
  * Tracks a file that has been added to the staging area (index).
  * Stores metadata used for fast dirty detection via mtime/size,
  * falling back to content hash comparison when needed.
+ * 
+ * Mimics Git's index entry structure with file metadata and blob hash.
  */
 struct IndexEntry {
     std::string path;        // Path relative to repo root (e.g., "src/main.cpp")
-    std::string hashHex;     // SHA-256 hash of Git blob object (64-char hex)
+    std::string hashHex;     // SHA-1/SHA-256 hash of Git blob object (40 or 64-char hex)
     uint64_t sizeBytes{0};   // File size in bytes (for fast dirty check)
     uint64_t mtimeNs{0};     // Last modification time in nanoseconds (for fast dirty check)
+    uint32_t mode{0};        // File mode/permissions (e.g., 0100644 for regular file, 0100755 for executable)
+    uint64_t ctimeNs{0};     // Creation time in nanoseconds (Git tracks ctime)
 };
 
 /**
@@ -29,8 +33,8 @@ struct IndexEntry {
  * in the next commit. Each entry tracks a file's path, blob hash, and metadata.
  * 
  * On-disk format (.gitter/index):
- *   TSV with one entry per line: path<TAB>hash<TAB>size<TAB>mtime
- *   Example: "src/main.cpp<TAB>a3b2c1...<TAB>1024<TAB>1234567890000000000"
+ *   TSV with one entry per line: path<TAB>hash<TAB>size<TAB>mtime<TAB>mode<TAB>ctime
+ *   Example: "src/main.cpp<TAB>a3b2c1...<TAB>1024<TAB>1234567890000000000<TAB>33188<TAB>1234567890000000000"
  * 
  * This mimics Git's index (staging area) where files are prepared for commit.
  */

@@ -12,24 +12,12 @@
 #include "core/Repository.hpp"
 #include "core/Index.hpp"
 #include "core/ObjectStore.hpp"
-#include "util/Hasher.hpp"
+// Include concrete hasher to allow ObjectStore destructor instantiation
+#include "util/Sha1Hasher.hpp"
 
 namespace fs = std::filesystem;
 
 namespace gitter {
-
-/**
- * @brief Helper to read index file into a set of paths (legacy; unused now that Index class exists)
- */
-static void readIndexLines(const fs::path& indexPath, std::unordered_set<std::string>& out) {
-    std::ifstream in(indexPath, std::ios::binary);
-    if (!in) return;
-    std::string line;
-    while (std::getline(in, line)) {
-        if (!line.empty() && line.back() == '\r') line.pop_back();
-        if (!line.empty()) out.insert(line);
-    }
-}
 
 /**
  * @brief Collect untracked files by scanning working tree

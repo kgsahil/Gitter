@@ -26,7 +26,10 @@ src/
 └── util/                     # General-purpose utilities
     ├── Logger.*             # Leveled logging system
     ├── Expected.hpp         # Result/error handling
-    ├── Hasher.*             # SHA-256 implementation
+    ├── IHasher.hpp          # Hash algorithm interface (Strategy Pattern)
+    ├── HasherFactory.*      # Factory for creating hasher instances
+    ├── Sha1Hasher.*         # SHA-1 implementation (Git default)
+    ├── Sha256Hasher.*       # SHA-256 implementation (Git future)
     └── PatternMatcher.*     # Glob/regex pattern matching
 ```
 
@@ -35,8 +38,10 @@ src/
 ### 1. Utility Layer (`src/util/`)
 **Purpose:** Reusable, generic utilities with no Git-specific logic
 
-- **Hasher** - Cryptographic SHA-256 hashing
+- **IHasher / HasherFactory** - Cryptographic hashing (Strategy Pattern)
   - Pure utility, no domain knowledge
+  - Supports SHA-1 (Git default) and SHA-256
+  - Factory creates hasher instances by name
   - Used by ObjectStore for content addressing
   
 - **PatternMatcher** - Glob pattern to regex conversion
@@ -192,21 +197,26 @@ Util Layer
 - Mockable interfaces (ICommand)
 - Dependency injection via constructors (future)
 
-## Why Hasher Moved to Util
+## Why Hashers are in Util
 
-**Before:** `src/core/Hasher.*`  
-**After:** `src/util/Hasher.*`
+**Location:** `src/util/IHasher.hpp`, `Sha1Hasher.*`, `Sha256Hasher.*`, `HasherFactory.*`
 
 **Reasoning:**
-- SHA-256 is a **general-purpose** cryptographic hash
+- SHA-1 and SHA-256 are **general-purpose** cryptographic hashes
 - No Git-specific logic in implementation
 - Could be reused for any content addressing
+- Strategy Pattern allows swapping algorithms
 - Aligns with util layer principle: "reusable, generic"
+
+**Clean Separation:**
+- Each hash algorithm in its own file pair (.hpp/.cpp)
+- Factory pattern for creating instances
+- Interface (IHasher) defines contract
 
 **What's Git-specific:**
 - `ObjectStore` knows to hash `"blob <size>\0<content>"`
 - `Index` knows to store hashes for files
-- Hasher just computes SHA-256 of bytes
+- Hashers just compute hashes of bytes
 
 ## Why PatternMatcher is in Util
 

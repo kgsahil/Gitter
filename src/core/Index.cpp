@@ -19,18 +19,22 @@ bool Index::load(const fs::path& repoRoot) {
     while (std::getline(in, line)) {
         if (!line.empty() && line.back() == '\r') line.pop_back();
         if (line.empty()) continue;
-        // TSV: path\thash\tsize\tmtime
+        // TSV: path\thash\tsize\tmtime\tmode\tctime
         std::istringstream iss(line);
-        std::string path, hash, sizeStr, mtimeStr;
+        std::string path, hash, sizeStr, mtimeStr, modeStr, ctimeStr;
         if (!std::getline(iss, path, '\t')) continue;
         std::getline(iss, hash, '\t');
         std::getline(iss, sizeStr, '\t');
         std::getline(iss, mtimeStr, '\t');
+        std::getline(iss, modeStr, '\t');
+        std::getline(iss, ctimeStr, '\t');
         IndexEntry e;
         e.path = path;
         e.hashHex = hash;
         e.sizeBytes = sizeStr.empty() ? 0ULL : static_cast<uint64_t>(std::stoull(sizeStr));
         e.mtimeNs = mtimeStr.empty() ? 0ULL : static_cast<uint64_t>(std::stoull(mtimeStr));
+        e.mode = modeStr.empty() ? 0U : static_cast<uint32_t>(std::stoul(modeStr));
+        e.ctimeNs = ctimeStr.empty() ? 0ULL : static_cast<uint64_t>(std::stoull(ctimeStr));
         pathToEntry[e.path] = e;
     }
     return true;
@@ -42,7 +46,8 @@ bool Index::save(const fs::path& repoRoot) const {
     if (!out) return false;
     for (const auto& kv : pathToEntry) {
         const auto& e = kv.second;
-        out << e.path << '\t' << e.hashHex << '\t' << e.sizeBytes << '\t' << e.mtimeNs << '\n';
+        out << e.path << '\t' << e.hashHex << '\t' << e.sizeBytes << '\t' 
+            << e.mtimeNs << '\t' << e.mode << '\t' << e.ctimeNs << '\n';
     }
     return true;
 }

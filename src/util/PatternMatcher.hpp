@@ -19,9 +19,9 @@ namespace gitter {
  *   [abc] -> character class (passed through)
  * 
  * Examples:
- *   *.txt       -> matches all .txt files
- *   src/*.cpp   -> matches .cpp files in src/
- *   test?.py    -> matches test1.py, test2.py, etc.
+ *   *.txt          -> matches all .txt files
+ *   src slash*.cpp -> matches .cpp files in src/
+ *   test?.py       -> matches test1.py, test2.py, etc.
  */
 namespace PatternMatcher {
 
@@ -34,7 +34,7 @@ namespace PatternMatcher {
  *   . -> \.  (literal dot)
  *   Special regex chars are escaped
  * 
- * @param pattern Glob pattern (e.g., "*.txt", "src/*.cpp")
+ * @param pattern Glob pattern (e.g., "*.txt", "src slash *.cpp")
  * @return std::regex compiled from pattern
  * 
  * Example: "*.txt" -> ".*\.txt"
@@ -55,7 +55,7 @@ bool isPattern(const std::string& path);
  * Recursively searches from current directory and returns all files
  * matching the glob pattern. Automatically skips .gitter directory.
  * 
- * @param pattern Glob pattern (e.g., "*.txt", "src/*.cpp", "test?.py")
+ * @param pattern Glob pattern (e.g., "*.txt", "src slash *.cpp", "test?.py")
  * @param root Repository root path
  * @param gitterDirStr Normalized .gitter directory path to skip
  * @return Vector of absolute paths matching pattern
@@ -75,7 +75,7 @@ std::vector<std::filesystem::path> matchFilesInWorkingTree(
  * Filters index entries by glob pattern and returns matching paths.
  * Used by restore command to unstage multiple files at once.
  * 
- * @param pattern Glob pattern (e.g., "*.txt", "src/*.cpp")
+ * @param pattern Glob pattern (e.g., "*.txt", "src slash *.cpp")
  * @param indexPaths Set or map of paths currently in index
  * @return Vector of matching paths (relative to repo root)
  * 
