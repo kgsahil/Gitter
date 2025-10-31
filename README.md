@@ -201,28 +201,56 @@ gitter restore --staged src/*.h
 1. **Pattern Resolution**: If pathspec contains `*`, `?`, or `[`, treat as glob pattern
 2. **File Discovery**: Recursively scan directories or match patterns
 3. **Hash Computation**: Create Git blob object: `"blob <size>\0<content>"`
-4. **Object Storage**: Write to `.gitter/objects/<sha256-hash>`
-5. **Index Update**: Record `path`, `hash`, `size`, `mtime` in index
+4. **Object Storage**: Compress with zlib and write to `.gitter/objects/<aa>/<bbb...>` (SHA-1)
+5. **Index Update**: Record `path`, `hash`, `size`, `mtime`, `mode`, `ctime` in index
 
 ### How Status Works
 
-1. **Load Index**: Read all staged files
-2. **Print Staged**: Show "Changes to be committed"
-3. **Detect Modified**:
-   - Fast path: Compare size and mtime
-   - Slow path: Recompute hash if suspicious
-4. **Find Untracked**: Scan working tree for files not in index
-5. **Print Results**: Categorize and display
+1. **Three-Way Comparison**:
+   - **Index vs HEAD**: Build tree from index, compare with HEAD tree hash
+     - If different → "Changes to be committed"
+   - **Working Tree vs Index**: Compare file hashes and metadata
+     - If different → "Changes not staged for commit"
+   - **Working Tree vs Index**: Find files not in index
+     - → "Untracked files"
+2. **Fast Detection**: Size/mtime check first, hash comparison if suspicious
+3. **Print Results**: Categorize and display in Git-style format
 
-### Tree Storage (for future commit)
+### How Commit Works
+
+1. **Parse Arguments**: Extract `-m <message>` and optional `-a` flag
+2. **Load Index**: Read all staged files
+3. **Build Tree**: `TreeBuilder` converts flat index into hierarchical tree objects
+   - Groups files by directory recursively
+   - Creates tree objects: `"tree <size>\0<mode> <name>\0<hash>..."`
+   - Stores in `.gitter/objects/<aa>/<bbb...>`
+4. **Create Commit**: Build commit object with tree, parent, author, committer, message
+   - Format: `"commit <size>\0tree...\nparent...\nauthor...\n\n<message>"`
+   - Compress with zlib and store
+5. **Update Branch**: Write commit hash to `.gitter/refs/heads/main`
+6. **Print Success**: Display commit hash and message
+
+### How Log Works
+
+1. **Resolve HEAD**: Read `.gitter/HEAD` and follow to branch reference
+2. **Traverse Chain**: Follow parent pointers from HEAD (up to 10 commits)
+3. **Parse Commits**: For each commit:
+   - Read compressed object from `.gitter/objects/<aa>/<bbb...>`
+   - Decompress with zlib
+   - Parse commit format: tree, parents, author, committer, message
+4. **Display**: Git-style formatted output (hash, author, date, message)
+5. **Stop**: At root commit or after 10 commits
+
+### Tree Storage
 
 See [docs/TREE_STORAGE.md](docs/TREE_STORAGE.md) for detailed explanation of how Git stores directory trees.
 
 **Summary:**
 - Index stores flat file list
-- Trees built recursively at commit time
+- Trees built recursively at commit time by `TreeBuilder`
 - Each tree object represents one directory level
 - Commit points to root tree
+- ✅ **Implemented**: `TreeBuilder` class creates trees from index
 
 ## Error Handling
 
@@ -264,6 +292,22 @@ echo "world" > file2.txt
 gitter add *.txt
 gitter status
 
+# Create first commit
+gitter commit -m "Initial commit"
+gitter status  # Should show: nothing to commit, working tree clean
+
+# View commit history
+gitter log
+
+# Modify file
+echo "more" >> file1.txt
+gitter status  # Should show: Changes not staged for commit: modified: file1.txt
+
+# Stage and commit
+gitter add file1.txt
+gitter commit -m "Update file1"
+gitter log  # Should show 2 commits
+
 # Unstage
 gitter restore --staged file1.txt
 gitter status
@@ -303,6 +347,7 @@ The code is well-documented with Doxygen-style comments and comprehensive guides
 - **[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)** - Overall project architecture and design patterns
 - **[docs/COMMIT_IMPLEMENTATION.md](docs/COMMIT_IMPLEMENTATION.md)** - Commit creation with trees and objects
 - **[docs/LOG_IMPLEMENTATION.md](docs/LOG_IMPLEMENTATION.md)** - Commit history display and parsing
+- **[docs/STATUS_FIX.md](docs/STATUS_FIX.md)** - Status command three-way comparison fix
 - **[docs/HASHER_ARCHITECTURE.md](docs/HASHER_ARCHITECTURE.md)** - Strategy Pattern for hash algorithms
 - **[docs/SHA1_STRATEGY_PATTERN.md](docs/SHA1_STRATEGY_PATTERN.md)** - Git-compliant object storage details
 - **[docs/REFACTORING_SUMMARY.md](docs/REFACTORING_SUMMARY.md)** - Recent hasher refactoring changes

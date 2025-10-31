@@ -4,6 +4,66 @@ All notable changes to the Gitter project will be documented in this file.
 
 ## [Unreleased]
 
+### Added - Commit and Log Commands (2025-11-01)
+
+#### Commit Implementation
+- **TreeBuilder Class**
+  - Converts flat index into hierarchical tree objects
+  - Recursively builds trees from leaves to root
+  - Creates Git-format tree entries: `<mode> <name>\0<binary-hash>`
+  - Handles nested directories automatically
+
+- **Commit Command**
+  - `gitter commit -m <message>` - Create commit with message
+  - `gitter commit -a -m <message>` - Auto-stage modified files (with warning)
+  - `gitter commit -am <message>` - Shorthand for `-a -m`
+  - Creates tree objects from index
+  - Creates commit objects with metadata (author, committer, timestamp)
+  - Updates branch references (HEAD)
+  - Supports parent commit references
+
+- **Commit Objects**
+  - Git format: `commit <size>\0tree...\nparent...\nauthor...\n\n<message>`
+  - Stores author/committer name, email, timestamp, timezone
+  - Links to parent commits (supports merge commits)
+  - Environment variable support: `GIT_AUTHOR_NAME`, `GIT_AUTHOR_EMAIL`
+
+#### Log Implementation
+- **Log Command**
+  - `gitter log` - Display last 10 commits (newest first)
+  - Traverses commit chain via parent pointers
+  - Git-style formatted output with colors
+  - Shows commit hash, author, date, and message
+
+- **CommitObject Struct**
+  - Parses commit objects from storage
+  - Extracts all metadata (tree, parents, author, committer, message)
+  - Helper methods: `shortHash()`, `shortMessage()`
+
+- **ObjectStore Enhancements**
+  - `readCommit(hash)` - Reads and parses commit objects
+  - `writeTree(content)` - Writes tree objects
+  - `writeCommit(content)` - Writes commit objects
+  - All objects compressed with zlib
+
+#### Status Command Fix
+- **Three-Way Comparison**
+  - Fixed status to compare HEAD vs Index vs Working Tree
+  - Correctly shows "nothing to commit" after commit
+  - Only shows staged changes when index differs from HEAD
+  - Compares tree hashes efficiently
+
+- **Proper State Detection**
+  - Changes to be committed: Index ≠ HEAD
+  - Changes not staged: Working Tree ≠ Index
+  - Untracked files: In working tree but not in index
+
+#### Documentation
+- **New Documentation Files**
+  - `docs/COMMIT_IMPLEMENTATION.md` - Complete commit creation guide
+  - `docs/LOG_IMPLEMENTATION.md` - Commit history display guide
+  - `docs/STATUS_FIX.md` - Status command three-way comparison fix
+
 ### Added - SHA-1 Strategy Pattern & Git-Compliant Storage (2025-10-31)
 
 #### Hash Algorithm Refactoring
@@ -137,15 +197,19 @@ All notable changes to the Gitter project will be documented in this file.
 
 ## Version History
 
-- **Current** - SHA-1 Strategy Pattern + Git-compliant storage
-- **Previous** - Initial implementation with basic Git functionality
+- **Current** - Commit/Log commands + Three-way status comparison + Git-compliant storage
+- **Previous** - SHA-1 Strategy Pattern + Git-compliant storage
+- **Initial** - Basic Git functionality (init, add, status, restore)
 
 ## Future Plans
 
 See [README.md Roadmap](README.md#roadmap) for upcoming features:
-- Commit command with tree object creation
-- Log command for commit history
+- ✅ Commit command with tree object creation (DONE)
+- ✅ Log command for commit history (DONE)
 - Checkout command for branch switching
-- Branch management
-- Basic merge detection
+- Branch management (create, delete, list)
+- Diff output for file changes
+- Merge commits (basic merge support)
+- Remote operations (push/pull/fetch)
+- Tag support
 

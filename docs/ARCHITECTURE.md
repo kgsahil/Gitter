@@ -12,16 +12,18 @@ src/
 │       ├── HelpCommand.*
 │       ├── InitCommand.*
 │       ├── AddCommand.*
-│       ├── StatusCommand.*
+│       ├── CommitCommand.*  # ✅ Fully implemented
+│       ├── LogCommand.*     # ✅ Fully implemented
+│       ├── StatusCommand.*  # ✅ Fully implemented (with three-way comparison)
 │       ├── RestoreCommand.*
-│       ├── CommitCommand.*  (stub)
-│       ├── LogCommand.*     (stub)
 │       └── CheckoutCommand.* (stub)
 │
 ├── core/                     # Git core logic
 │   ├── Repository.*         # Repository management (Singleton)
 │   ├── ObjectStore.*        # Git object storage (blobs/trees/commits)
-│   └── Index.*              # Staging area management
+│   ├── Index.*              # Staging area management
+│   ├── TreeBuilder.*        # Builds tree objects from index
+│   └── CommitObject.hpp     # Commit metadata structure
 │
 └── util/                     # General-purpose utilities
     ├── Logger.*             # Leveled logging system
@@ -66,13 +68,28 @@ src/
   
 - **ObjectStore** - Content-addressable object storage
   - Implements Git object format: `"<type> <size>\0<content>"`
-  - Writes blobs to `.gitter/objects/<hash>`
-  - Uses Hasher for SHA-256 computation
+  - Writes blobs/trees/commits to `.gitter/objects/<aa>/<bbb...>`
+  - Uses SHA-1 hasher (Git default) with SHA-256 support
+  - Compresses objects with zlib
+  - Parses commit objects via `readCommit()`
   
 - **Index** - Staging area (Git index)
-  - TSV format: `path\thash\tsize\tmtime`
+  - TSV format: `path\thash\tsize\tmtime\tmode\tctime`
   - Tracks files staged for next commit
   - Fast dirty detection via size/mtime
+  - Stores file permissions (mode: 0100644, 0100755)
+  - Tracks creation time (ctime)
+  
+- **TreeBuilder** - Builds Git tree objects
+  - Converts flat index into hierarchical tree structure
+  - Recursively builds trees from leaves to root
+  - Creates Git-format tree entries: `<mode> <name>\0<binary-hash>`
+  - Handles nested directories automatically
+  
+- **CommitObject** - Commit metadata structure
+  - Parsed representation of Git commit objects
+  - Stores tree, parents, author, committer, timestamp, message
+  - Helper methods: `shortHash()`, `shortMessage()`
 
 ### 3. CLI Layer (`src/cli/`)
 **Purpose:** Command-line interface and user interaction
@@ -118,9 +135,9 @@ src/
 - **Benefit:** Commands don't need to know internal repo structure
 
 ### 5. **Strategy Pattern**
-- **Where:** `PatternMatcher` (future: IHasher, IDiffStrategy)
-- **Why:** Swap algorithms (glob matching, hashing) without changing clients
-- **Benefit:** Extensible for SHA-1 vs SHA-256, etc.
+- **Where:** `IHasher` (SHA-1/SHA-256), `PatternMatcher` (future: IDiffStrategy)
+- **Why:** Swap algorithms (hashing, glob matching, diff) without changing clients
+- **Benefit:** Extensible for SHA-1 vs SHA-256, different diff algorithms, etc.
 
 ### 6. **Template Method Pattern**
 - **Where:** Potential `BaseCommand` (future enhancement)
@@ -145,8 +162,9 @@ AddCommand:
      a. ObjectStore.writeBlobFromFile(file)
         - Reads file content
         - Creates Git blob: "blob <size>\0<content>"
-        - Hasher.digest() computes SHA-256
-        - Writes to .gitter/objects/<hash>
+        - Hasher.digest() computes SHA-1 (default)
+        - Compresses with zlib
+        - Writes to .gitter/objects/<aa>/<bbb...>
      b. Index.addOrUpdate(path, hash, size, mtime)
   3. Index.save()
   ↓
@@ -160,14 +178,70 @@ User: gitter status
 StatusCommand:
   1. Repository.discoverRoot() finds .gitter/
   2. Index.load() reads staged files
-  3. Print "Changes to be committed"
-  4. For each indexed file:
-     a. Check if file exists (deleted?)
-     b. Compare size/mtime (modified?)
-     c. If suspicious: ObjectStore.hashFileContent() and compare
-  5. PatternMatcher... (wait, Status doesn't use patterns)
-     Collect untracked via filesystem scan
-  6. Print categorized results
+  3. Resolve HEAD to get current commit hash
+  4. Three-way comparison:
+     a. Index vs HEAD:
+        - Build tree from index: TreeBuilder.buildFromIndex()
+        - Compare tree hash with HEAD commit tree
+        - If different → "Changes to be committed"
+     b. Working Tree vs Index:
+        - For each indexed file: compare size/mtime
+        - If suspicious: ObjectStore.hashFileContent() and compare
+        - If different → "Changes not staged for commit"
+     c. Working Tree vs Index:
+        - Collect files in working tree not in index
+        - → "Untracked files"
+  5. Print categorized results
+```
+
+### Commit Command Flow
+```
+User: gitter commit -m "Message"
+  ↓
+CommitCommand:
+  1. Parse arguments (-m message, optional -a flag)
+  2. Repository.discoverRoot() finds .gitter/
+  3. Index.load() reads staged files
+  4. Check if index is empty (error if so)
+  5. TreeBuilder.buildFromIndex():
+     - Groups files by directory
+     - Recursively builds trees from leaves to root
+     - Creates tree objects: "tree <size>\0<mode> <name>\0<hash>..."
+     - ObjectStore.writeTree() stores each tree
+  6. Read HEAD to get parent commit hash
+  7. Build commit object:
+     - Format: "commit <size>\0tree <hash>\nparent <hash>\n..."
+     - Include author/committer (from env vars or defaults)
+     - Unix timestamp and timezone
+     - Commit message
+  8. ObjectStore.writeCommit() stores commit
+  9. Update branch reference (.gitter/refs/heads/main)
+  10. Print success: "[commit abc1237] Message"
+  ↓
+Success/Error returned through Expected<void>
+```
+
+### Log Command Flow
+```
+User: gitter log
+  ↓
+LogCommand:
+  1. Repository.discoverRoot() finds .gitter/
+  2. Resolve HEAD to get current commit hash
+  3. Loop (up to 10 commits):
+     a. ObjectStore.readCommit(hash):
+        - Read compressed object from .gitter/objects/<aa>/<bbb...>
+        - Decompress with zlib
+        - Parse commit format
+        - Extract: tree, parents, author, committer, message
+     b. Display formatted commit:
+        - Yellow commit hash
+        - Author name and email
+        - Formatted date and timezone
+        - Indented commit message
+     c. Follow first parent pointer
+     d. Break if no parent (root commit)
+  4. Stop after 10 commits or end of chain
 ```
 
 ## Key Principles
@@ -230,29 +304,47 @@ Util Layer
 
 - **Repository** - manages `.gitter/` structure
 - **Index** - understands staging area format
-- **ObjectStore** - understands Git object format
+- **ObjectStore** - understands Git object format (blob/tree/commit)
+- **TreeBuilder** - understands Git tree structure and hierarchy
+- **CommitObject** - understands Git commit metadata format
 
 These have Git-specific knowledge and shouldn't move.
 
 ## Future Architecture Considerations
 
-### Planned Additions
+### Implemented Additions
 
-1. **TreeBuilder** (core layer)
+1. ✅ **TreeBuilder** (core layer)
    - Builds tree objects from index entries
    - Groups files by directory recursively
+   - Creates Git-format tree objects
 
-2. **CommitBuilder** (core layer)
-   - Creates commit objects with metadata
+2. ✅ **CommitObject** (core layer)
+   - Struct for parsed commit metadata
+   - Used by CommitCommand and LogCommand
    - Links to tree and parent commits
 
-3. **RefManager** (core layer)
+3. ✅ **Commit/Log Commands** (cli layer)
+   - CommitCommand creates commits with trees
+   - LogCommand displays commit history
+   - Both fully implemented
+
+### Planned Additions
+
+1. **RefManager** (core layer)
    - Manages `HEAD` and branch refs
    - Resolves symbolic refs
+   - Branch creation/deletion
 
-4. **DiffEngine** (core layer)
+2. **DiffEngine** (core layer)
    - Compares trees/commits
    - Generates patch format output
+   - Shows file-level diffs
+
+3. **CheckoutCommand** (cli layer)
+   - Switch branches
+   - Restore working tree from commit
+   - Update HEAD reference
 
 ### Extensibility Points
 
