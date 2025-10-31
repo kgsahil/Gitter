@@ -22,6 +22,25 @@ namespace fs = std::filesystem;
 namespace gitter {
 
 /**
+ * @brief Normalize path for consistent comparison with index
+ * 
+ * Uses same normalization as Index::normalizePath to ensure paths match.
+ * Normalizes path to use forward slashes and removes unnecessary components
+ * like "./" prefix. Ensures same file always has same path representation.
+ */
+static std::string normalizePathForStatus(const std::string& path) {
+    fs::path p(path);
+    std::string normalized = p.lexically_normal().generic_string();
+    
+    // Remove leading ./ if present (matches Index::normalizePath)
+    if (normalized.length() >= 2 && normalized.substr(0, 2) == "./") {
+        normalized = normalized.substr(2);
+    }
+    
+    return normalized;
+}
+
+/**
  * @brief Collect untracked files by scanning working tree
  * 
  * Recursively walks working directory and finds files not in the index.
@@ -35,14 +54,48 @@ static void collectUntracked(const fs::path& root, const std::unordered_set<std:
     fs::path gdir = root / ".gitter";
     std::error_code ec;
     for (auto it = fs::recursive_directory_iterator(root, ec); it != fs::recursive_directory_iterator(); it.increment(ec)) {
-        if (ec) break;
+        if (ec) {
+            // Log error but continue - don't break entire scan
+            continue;
+        }
+        
         const auto& p = it->path();
+        
+        // Skip if not a regular file
         if (!it->is_regular_file(ec)) continue;
+        
+        // Skip .gitter directory
         if (p.lexically_normal().string().rfind(gdir.lexically_normal().string(), 0) == 0) continue;
+        
+        // Get relative path from repository root
         fs::path rel = fs::relative(p, root, ec);
-        if (ec) rel = p;
-        auto relStr = rel.generic_string();
-        if (indexed.find(relStr) == indexed.end()) untracked.push_back(relStr);
+        
+        // If relative() fails, try manual calculation
+        if (ec || rel.empty()) {
+            // Fallback: try to get relative path manually
+            std::string absStr = p.lexically_normal().string();
+            std::string rootStr = root.lexically_normal().string();
+            
+            // Remove trailing slash from root for comparison
+            if (!rootStr.empty() && rootStr.back() != '/') {
+                rootStr += '/';
+            }
+            
+            if (absStr.rfind(rootStr, 0) == 0) {
+                rel = absStr.substr(rootStr.length());
+            } else {
+                // Can't determine relative path - skip this file
+                continue;
+            }
+        }
+        
+        // Normalize path using same logic as Index
+        std::string normalizedPath = normalizePathForStatus(rel.generic_string());
+        
+        // Check if file is tracked (in index)
+        if (indexed.find(normalizedPath) == indexed.end()) {
+            untracked.push_back(normalizedPath);
+        }
     }
 }
 
@@ -80,21 +133,25 @@ Expected<void> StatusCommand::execute(const AppContext&, const std::vector<std::
     
     if (fs::exists(headPath)) {
         std::ifstream headFile(headPath);
-        std::string headContent;
-        std::getline(headFile, headContent);
-        headFile.close();
-        
-        if (headContent.rfind("ref: ", 0) == 0) {
-            std::string refPath = headContent.substr(5);
-            fs::path refFile = root / ".gitter" / refPath;
-            if (fs::exists(refFile)) {
-                std::ifstream rf(refFile);
-                std::getline(rf, currentCommitHash);
+        if (headFile) {
+            std::string headContent;
+            std::getline(headFile, headContent);
+            headFile.close();
+            
+            if (headContent.rfind("ref: ", 0) == 0) {
+                std::string refPath = headContent.substr(5);
+                fs::path refFile = root / ".gitter" / refPath;
+                if (fs::exists(refFile)) {
+                    std::ifstream rf(refFile);
+                    if (rf) {
+                        std::getline(rf, currentCommitHash);
+                        hasCommits = !currentCommitHash.empty();
+                    }
+                }
+            } else {
+                currentCommitHash = headContent;
                 hasCommits = !currentCommitHash.empty();
             }
-        } else {
-            currentCommitHash = headContent;
-            hasCommits = !currentCommitHash.empty();
         }
     }
     
@@ -149,7 +206,7 @@ Expected<void> StatusCommand::execute(const AppContext&, const std::vector<std::
             continue;
         }
         
-        // Fast check: size and mtime
+        // Fast check: size and mtime (Git's optimization - skip expensive hash if both match)
         uint64_t sizeBytes = static_cast<uint64_t>(fs::file_size(p, ec));
         if (ec) sizeBytes = 0;
         
@@ -162,13 +219,33 @@ Expected<void> StatusCommand::execute(const AppContext&, const std::vector<std::
             mtimeNs = static_cast<uint64_t>(std::chrono::duration_cast<std::chrono::nanoseconds>(adj.time_since_epoch()).count());
         }
         
-        bool suspect = (sizeBytes != e.sizeBytes) || (mtimeNs != e.mtimeNs);
-        if (suspect) {
-            // Hash to confirm
+        // Git's optimization: If size AND mtime match, assume unchanged (skip expensive hash)
+        // This works because:
+        // 1. Modifying a file updates its mtime (filesystem guarantees this)
+        // 2. If size differs, content definitely changed
+        // 3. If both match, file is almost certainly unchanged (very high probability)
+        // 4. This optimization is crucial for performance with large repositories
+        
+        bool sizeMatches = sizeBytes == e.sizeBytes;
+        bool mtimeMatches = mtimeNs == e.mtimeNs;
+        
+        if (sizeMatches && mtimeMatches) {
+            // Fast path: skip hash computation for performance
+            // Note: In rare edge cases (same-size edits within same second, or filesystem
+            // mtime granularity issues), a content change might be missed. However, this
+            // matches Git's behavior and is acceptable for performance reasons.
+            continue;
+        }
+        
+        // Slow path: size or mtime differs, hash to confirm actual change
+        try {
             std::string nowHash = store.hashFileContent(p);
             if (nowHash != e.hashHex) {
                 modified.push_back(e.path);
             }
+        } catch (const std::exception&) {
+            // If we can't hash but fast check suggests change, assume modified
+            modified.push_back(e.path);
         }
     }
     

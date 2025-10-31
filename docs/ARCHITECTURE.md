@@ -9,13 +9,13 @@ src/
 │   ├── CommandFactory.*     # Factory pattern for command creation
 │   ├── CommandInvoker.*     # Command executor with error handling
 │   └── commands/            # Individual command implementations
-│       ├── HelpCommand.*
-│       ├── InitCommand.*
-│       ├── AddCommand.*
+│       ├── HelpCommand.*    # ✅ Fully implemented
+│       ├── InitCommand.*    # ✅ Fully implemented
+│       ├── AddCommand.*     # ✅ Fully implemented (with glob patterns)
 │       ├── CommitCommand.*  # ✅ Fully implemented
 │       ├── LogCommand.*     # ✅ Fully implemented
 │       ├── StatusCommand.*  # ✅ Fully implemented (with three-way comparison)
-│       ├── RestoreCommand.*
+│       ├── RestoreCommand.* # ✅ Fully implemented (with glob patterns)
 │       └── CheckoutCommand.* (stub)
 │
 ├── core/                     # Git core logic
@@ -23,7 +23,8 @@ src/
 │   ├── ObjectStore.*        # Git object storage (blobs/trees/commits)
 │   ├── Index.*              # Staging area management
 │   ├── TreeBuilder.*        # Builds tree objects from index
-│   └── CommitObject.hpp     # Commit metadata structure
+│   ├── CommitObject.hpp     # Commit metadata structure
+│   └── Constants.hpp        # Centralized constants (SHA-1 length, etc.)
 │
 └── util/                     # General-purpose utilities
     ├── Logger.*             # Leveled logging system
@@ -72,13 +73,18 @@ src/
   - Uses SHA-1 hasher (Git default) with SHA-256 support
   - Compresses objects with zlib
   - Parses commit objects via `readCommit()`
+  - **Error checking**: All file writes verified for success
+  - **Cleanup**: Partial writes automatically removed on failure
   
 - **Index** - Staging area (Git index)
   - TSV format: `path\thash\tsize\tmtime\tmode\tctime`
   - Tracks files staged for next commit
-  - Fast dirty detection via size/mtime
+  - Fast dirty detection via size/mtime (Git optimization)
   - Stores file permissions (mode: 0100644, 0100755)
   - Tracks creation time (ctime)
+  - **Atomic writes**: Uses temp file pattern to prevent corruption
+  - **Path normalization**: Ensures consistent path representation
+  - **Input validation**: Validates hash format and numeric fields
   
 - **TreeBuilder** - Builds Git tree objects
   - Converts flat index into hierarchical tree structure
@@ -185,9 +191,11 @@ StatusCommand:
         - Compare tree hash with HEAD commit tree
         - If different → "Changes to be committed"
      b. Working Tree vs Index:
-        - For each indexed file: compare size/mtime
-        - If suspicious: ObjectStore.hashFileContent() and compare
+        - For each indexed file: compare size/mtime (fast check)
+        - **Optimization**: If size AND mtime match, skip hash (assume unchanged)
+        - If size OR mtime differs: ObjectStore.hashFileContent() and compare
         - If different → "Changes not staged for commit"
+        - Matches Git's performance optimization for large repositories
      c. Working Tree vs Index:
         - Collect files in working tree not in index
         - → "Untracked files"
@@ -261,10 +269,14 @@ Util Layer
    (Util never depends upward)
 ```
 
-### 3. **Error Handling**
+### 3. **Error Handling & Reliability**
 - Use `Expected<T, Error>` for recoverable errors
 - Return errors, don't throw exceptions for control flow
 - Each layer enriches error context
+- **File I/O validation**: All writes/reads verified for success
+- **Atomic operations**: Index writes use temp file pattern
+- **Input validation**: Hash format and numeric fields validated
+- **Graceful recovery**: Corrupted data handled gracefully
 
 ### 4. **Testability**
 - Pure functions in util layer
@@ -297,7 +309,7 @@ Util Layer
 **Reasoning:**
 - Glob-to-regex conversion is generic
 - File system pattern matching is reusable
-- Multiple commands use it (Add, Restore, future: Commit, Checkout)
+- Multiple commands use it (Add, Restore)
 - No Git domain knowledge required
 
 ## What Stays in Core
@@ -382,4 +394,7 @@ The architecture achieves:
 - ✅ Extensible via design patterns
 - ✅ Testable components
 - ✅ Well-documented interfaces
+- ✅ **Robust error handling** (file I/O validation, atomic writes)
+- ✅ **Performance optimization** (Git-style size/mtime check)
+- ✅ **Code quality** (constants extraction, input validation)
 

@@ -29,12 +29,17 @@ namespace gitter {
  * @param store Object store to write blob
  * @param index Index to update with new entry
  */
-static void addFileToIndex(const fs::path& filePath, const fs::path& root, ObjectStore& store, Index& index) {
+static Expected<void> addFileToIndex(const fs::path& filePath, const fs::path& root, ObjectStore& store, Index& index) {
     std::error_code ec;
     fs::path rel = fs::relative(filePath, root, ec);
     if (ec) rel = filePath;
 
-    std::string hash = store.writeBlobFromFile(filePath);
+    std::string hash;
+    try {
+        hash = store.writeBlobFromFile(filePath);
+    } catch (const std::exception& e) {
+        return Error{ErrorCode::IoError, std::string("Failed to write blob: ") + e.what()};
+    }
 
     uint64_t sizeBytes = static_cast<uint64_t>(fs::file_size(filePath, ec));
     if (ec) sizeBytes = 0;
@@ -73,7 +78,14 @@ static void addFileToIndex(const fs::path& filePath, const fs::path& root, Objec
     e.mtimeNs = mtimeNs;
     e.mode = mode;
     e.ctimeNs = ctimeNs;
-    index.addOrUpdate(e);
+    
+    try {
+        index.addOrUpdate(e);
+    } catch (const std::exception& e) {
+        return Error{ErrorCode::IoError, std::string("Failed to update index: ") + e.what()};
+    }
+    
+    return {};
 }
 
 /**
@@ -120,7 +132,11 @@ Expected<void> AddCommand::execute(const AppContext&, const std::vector<std::str
                 std::cerr << "warning: no files match pattern: " << p << "\n";
             }
             for (const auto& matched : matches) {
-                addFileToIndex(matched, root, store, index);
+                auto res = addFileToIndex(matched, root, store, index);
+                if (!res) {
+                    std::cerr << "warning: " << res.error().message << "\n";
+                    // Continue with other files even if one fails
+                }
             }
             continue;
         }
@@ -148,7 +164,11 @@ Expected<void> AddCommand::execute(const AppContext&, const std::vector<std::str
                 }
                 
                 if (fs::is_regular_file(entry, ec)) {
-                    addFileToIndex(entry, root, store, index);
+                    auto res = addFileToIndex(entry, root, store, index);
+                    if (!res) {
+                        std::cerr << "warning: " << res.error().message << "\n";
+                        // Continue with other files
+                    }
                 }
             }
         } else if (fs::is_regular_file(abs, ec)) {
@@ -159,7 +179,11 @@ Expected<void> AddCommand::execute(const AppContext&, const std::vector<std::str
                 continue;
             }
             
-            addFileToIndex(abs, root, store, index);
+            auto res = addFileToIndex(abs, root, store, index);
+            if (!res) {
+                std::cerr << "warning: " << res.error().message << "\n";
+                // Continue processing other files
+            }
         }
     }
 

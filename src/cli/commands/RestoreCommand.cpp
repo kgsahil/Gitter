@@ -24,7 +24,7 @@ namespace gitter {
  * 
  * Usage:
  *   gitter restore --staged file.txt      # Unstage single file
- *   gitter restore --staged src/*.cpp     # Unstage multiple files
+ *   gitter restore --staged src slash *.cpp  # Unstage multiple files (pattern)
  * 
  * Future: Support restoring working tree files from index/HEAD
  */
@@ -62,7 +62,7 @@ Expected<void> RestoreCommand::execute(const AppContext&, const std::vector<std:
     if (!index.load(root)) return Error{ErrorCode::IoError, "Failed to read index"};
 
     // Remove specified paths from index (unstage)
-    // Supports patterns like "*.txt" or "src/*.cpp"
+    // Supports patterns like "*.txt" or "src slash *.cpp"
     for (const auto& p : paths) {
         // Check if it's a glob pattern
         if (PatternMatcher::isPattern(p)) {
@@ -77,12 +77,20 @@ Expected<void> RestoreCommand::execute(const AppContext&, const std::vector<std:
             continue;
         }
         
-        // Regular path
+        // Regular path - normalize before comparing with index
         fs::path abs = fs::absolute(p);
         std::error_code ec;
         fs::path rel = fs::relative(abs, root, ec);
         if (ec) rel = abs;
-        std::string relStr = rel.generic_string();
+        
+        // Normalize path using same logic as Index (remove ./ prefix, etc.)
+        fs::path normalizedPath = rel.lexically_normal();
+        std::string relStr = normalizedPath.generic_string();
+        
+        // Remove leading ./ if present (matches Index normalization)
+        if (relStr.length() >= 2 && relStr.substr(0, 2) == "./") {
+            relStr = relStr.substr(2);
+        }
         
         const auto& entries = index.entries();
         if (entries.find(relStr) != entries.end()) {

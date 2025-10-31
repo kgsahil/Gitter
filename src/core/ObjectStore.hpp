@@ -112,13 +112,18 @@ public:
      * @throws std::runtime_error if commit not found or parse error
      */
     CommitObject readCommit(const std::string& hash);
+    
+    /**
+     * @brief Get path for object: .gitter/objects/<aa>/<bbbb...>
+     * @param hash Object hash (hex)
+     * @return Full path to object file
+     * @note Public for testing purposes
+     */
+    std::filesystem::path getObjectPath(const std::string& hash) const;
 
 private:
     std::filesystem::path root;       // Repository root path
     std::unique_ptr<IHasher> hasher;  // Hash algorithm (SHA-1/SHA-256)
-    
-    /// Get path for object: .gitter/objects/<aa>/<bbbb...>
-    std::filesystem::path getObjectPath(const std::string& hash) const;
 };
 
 }

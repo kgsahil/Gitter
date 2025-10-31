@@ -15,6 +15,7 @@ A minimal Git-like CLI tool that mimics core Git functionality, built with C++20
 | `gitter log` | Display commit history | `gitter log` (shows last 10 commits) |
 | `gitter status` | Show working tree status | `gitter status` |
 | `gitter restore --staged <pathspec>` | Unstage files | `gitter restore --staged file.txt`, `gitter restore --staged *.cpp` |
+| `gitter cat-file <type> <hash>` | Inspect Git objects | `gitter cat-file blob abc123...`, `gitter cat-file -t abc123...` |
 
 ### Pattern Matching Support
 
@@ -194,6 +195,25 @@ gitter restore --staged *.cpp
 gitter restore --staged src/*.h
 ```
 
+### Inspect Objects
+
+```bash
+# View blob content
+gitter cat-file blob abc123def456...
+
+# View tree entries
+gitter cat-file tree def456ghi789...
+
+# View commit content
+gitter cat-file commit ghi789jkl012...
+
+# Show object type
+gitter cat-file -t abc123...
+
+# Show object size
+gitter cat-file -s abc123...
+```
+
 ## Implementation Details
 
 ### How Add Works
@@ -213,7 +233,11 @@ gitter restore --staged src/*.h
      - If different → "Changes not staged for commit"
    - **Working Tree vs Index**: Find files not in index
      - → "Untracked files"
-2. **Fast Detection**: Size/mtime check first, hash comparison if suspicious
+2. **Fast Detection (Git Optimization)**: 
+   - Size/mtime check first - if both match, skip expensive hash computation
+   - Only hash files when size OR mtime differs
+   - Critical for performance with large repositories
+   - Matches Git's behavior exactly
 3. **Print Results**: Categorize and display in Git-style format
 
 ### How Commit Works
@@ -265,6 +289,14 @@ if (!result) {
 ```
 
 Error codes: `InvalidArgs`, `NotARepository`, `IoError`, `AlreadyInitialized`, etc.
+
+### Reliability Features
+
+- **File I/O Error Checking**: All write/read operations verified for success
+- **Atomic Index Writes**: Index writes use temp file pattern to prevent corruption
+- **Path Normalization**: Consistent path storage prevents duplicate entries
+- **Input Validation**: Hash format validation prevents corrupted index entries
+- **Graceful Recovery**: Corrupted index entries skipped automatically
 
 ## Logging
 
@@ -323,7 +355,7 @@ gitter status
 - **Commit history with parent references**
 - **Log display (last 10 commits, newest first)**
 - **Commit object parsing and traversal**
-- Status detection (staged/modified/untracked)
+- Status detection (staged/modified/untracked) with Git optimization
 - Unstaging with patterns
 - Git-compliant blob/tree/commit object storage
 - Zlib compression for objects
@@ -331,6 +363,8 @@ gitter status
 - SHA-1 hashing (Git default) with SHA-256 support
 - Strategy Pattern for hash algorithms
 - File permissions tracking (executable bit)
+- **Reliability**: Error checking, atomic writes, path normalization
+- **Code quality**: Constants extraction, input validation, graceful recovery
 
 ### Next Steps 🚧
 - `checkout` - Switch branches and restore working tree

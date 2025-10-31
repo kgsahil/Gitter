@@ -9,6 +9,7 @@
 #include "core/Repository.hpp"
 #include "core/ObjectStore.hpp"
 #include "core/CommitObject.hpp"
+#include "core/Constants.hpp"
 // Include concrete hasher to allow ObjectStore destructor instantiation
 #include "util/Sha1Hasher.hpp"
 
@@ -42,8 +43,15 @@ Expected<void> LogCommand::execute(const AppContext&, const std::vector<std::str
     }
     
     std::ifstream headFile(headPath);
+    if (!headFile) {
+        std::cout << "No commits yet\n";
+        return {};
+    }
     std::string headContent;
     std::getline(headFile, headContent);
+    if (headFile.bad()) {
+        return Error{ErrorCode::IoError, "Failed to read HEAD file"};
+    }
     headFile.close();
     
     // Resolve HEAD to commit hash
@@ -59,7 +67,14 @@ Expected<void> LogCommand::execute(const AppContext&, const std::vector<std::str
         }
         
         std::ifstream rf(refFile);
+        if (!rf) {
+            std::cout << "No commits yet\n";
+            return {};
+        }
         std::getline(rf, currentHash);
+        if (rf.bad()) {
+            return Error{ErrorCode::IoError, "Failed to read ref file"};
+        }
     } else {
         // Detached HEAD (direct commit hash)
         currentHash = headContent;
@@ -72,7 +87,7 @@ Expected<void> LogCommand::execute(const AppContext&, const std::vector<std::str
     
     // Traverse commit chain and display
     ObjectStore store(root);
-    int maxCommits = 10;
+    int maxCommits = Constants::MAX_COMMIT_LOG;
     int count = 0;
     
     while (!currentHash.empty() && count < maxCommits) {

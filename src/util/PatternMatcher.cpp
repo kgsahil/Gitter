@@ -11,12 +11,15 @@ namespace gitter {
 namespace PatternMatcher {
 
 std::regex globToRegex(const std::string& pattern) {
-    std::string regexStr;
+    std::string regexStr = "^";  // Anchor at start
     for (char c : pattern) {
         if (c == '*') {
-            regexStr += ".*";
+            // In Git, * doesn't match / unless it's ** (which we don't support yet)
+            // So * matches [^/]* (any character except /)
+            regexStr += "[^/]*";
         } else if (c == '?') {
-            regexStr += ".";
+            // ? matches a single character except /
+            regexStr += "[^/]";
         } else if (c == '.') {
             regexStr += "\\.";
         } else if (c == '+' || c == '[' || c == ']' || c == '(' || c == ')' || 
@@ -27,6 +30,7 @@ std::regex globToRegex(const std::string& pattern) {
             regexStr += c;
         }
     }
+    regexStr += "$";  // Anchor at end
     return std::regex(regexStr);
 }
 
@@ -42,11 +46,17 @@ std::vector<fs::path> matchFilesInWorkingTree(
     const std::string& gitterDirStr
 ) {
     std::vector<fs::path> matches;
+    
+    // Empty pattern matches nothing (Git behavior)
+    if (pattern.empty()) {
+        return matches;
+    }
+    
     std::regex re = globToRegex(pattern);
     std::error_code ec;
     
-    // Search from current directory
-    fs::path searchRoot = fs::current_path();
+    // Search from root directory (not current_path!)
+    fs::path searchRoot = root;
     
     for (auto it = fs::recursive_directory_iterator(searchRoot, ec); 
          it != fs::recursive_directory_iterator(); 
@@ -62,12 +72,12 @@ std::vector<fs::path> matchFilesInWorkingTree(
         }
         
         if (fs::is_regular_file(entry, ec)) {
-            // Get relative path from current dir for pattern matching
+            // Get relative path from root for pattern matching
             fs::path rel = fs::relative(entry, searchRoot, ec);
             std::string relStr = rel.generic_string();
             
-            // Match against pattern
-            if (std::regex_match(relStr, re) || std::regex_search(relStr, re)) {
+            // Use regex_match for exact Git-style glob matching (not regex_search)
+            if (std::regex_match(relStr, re)) {
                 matches.push_back(entry);
             }
         }
@@ -83,11 +93,20 @@ std::vector<std::string> matchPathsInIndex<std::unordered_map<std::string, Index
     const std::unordered_map<std::string, IndexEntry>& indexPaths
 ) {
     std::vector<std::string> matches;
+    
+    // Empty pattern matches nothing (Git behavior)
+    if (pattern.empty()) {
+        return matches;
+    }
+    
     std::regex re = globToRegex(pattern);
     
     for (const auto& kv : indexPaths) {
         const std::string& path = kv.first;
-        if (std::regex_match(path, re) || std::regex_search(path, re)) {
+        // Use regex_match for exact Git-style glob matching
+        // This ensures "src slash *.cpp" only matches direct children like "src/main.cpp"
+        // and not nested paths like "src/util/helper.cpp"
+        if (std::regex_match(path, re)) {
             matches.push_back(path);
         }
     }

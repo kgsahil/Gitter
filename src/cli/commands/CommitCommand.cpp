@@ -76,10 +76,15 @@ Expected<void> CommitCommand::execute(const AppContext&, const std::vector<std::
     
     // Create tree from index
     ObjectStore store(root);
-    std::string treeHash = TreeBuilder::buildFromIndex(index, store);
+    std::string treeHash;
+    try {
+        treeHash = TreeBuilder::buildFromIndex(index, store);
+    } catch (const std::exception& e) {
+        return Error{ErrorCode::IoError, std::string("Failed to create tree object: ") + e.what()};
+    }
     
     if (treeHash.empty()) {
-        return Error{ErrorCode::IoError, "Failed to create tree object"};
+        return Error{ErrorCode::IoError, "Failed to create tree object: empty tree"};
     }
     
     // Read parent commit (current HEAD)
@@ -87,16 +92,20 @@ Expected<void> CommitCommand::execute(const AppContext&, const std::vector<std::
     std::filesystem::path headPath = root / ".gitter" / "HEAD";
     if (std::filesystem::exists(headPath)) {
         std::ifstream headFile(headPath);
-        std::string headContent;
-        std::getline(headFile, headContent);
-        
-        // HEAD format: "ref: refs/heads/main"
-        if (headContent.rfind("ref: ", 0) == 0) {
-            std::string refPath = headContent.substr(5);
-            std::filesystem::path refFile = root / ".gitter" / refPath;
-            if (std::filesystem::exists(refFile)) {
-                std::ifstream rf(refFile);
-                std::getline(rf, parentHash);
+        if (headFile) {
+            std::string headContent;
+            std::getline(headFile, headContent);
+            
+            // HEAD format: "ref: refs/heads/main"
+            if (headContent.rfind("ref: ", 0) == 0) {
+                std::string refPath = headContent.substr(5);
+                std::filesystem::path refFile = root / ".gitter" / refPath;
+                if (std::filesystem::exists(refFile)) {
+                    std::ifstream rf(refFile);
+                    if (rf) {
+                        std::getline(rf, parentHash);
+                    }
+                }
             }
         }
     }
@@ -125,10 +134,18 @@ Expected<void> CommitCommand::execute(const AppContext&, const std::vector<std::
     commitContent << message << "\n";
     
     // Write commit object
-    std::string commitHash = store.writeCommit(commitContent.str());
+    std::string commitHash;
+    try {
+        commitHash = store.writeCommit(commitContent.str());
+    } catch (const std::exception& e) {
+        return Error{ErrorCode::IoError, std::string("Failed to write commit object: ") + e.what()};
+    }
     
     // Update HEAD (write to current branch ref)
     std::ifstream headFileRead(headPath);
+    if (!headFileRead) {
+        return Error{ErrorCode::IoError, "Failed to read HEAD file"};
+    }
     std::string headContent;
     std::getline(headFileRead, headContent);
     headFileRead.close();
@@ -138,11 +155,22 @@ Expected<void> CommitCommand::execute(const AppContext&, const std::vector<std::
         std::filesystem::path refFile = root / ".gitter" / refPath;
         
         // Create parent directories if needed
-        std::filesystem::create_directories(refFile.parent_path());
+        std::error_code ec;
+        std::filesystem::create_directories(refFile.parent_path(), ec);
+        if (ec) {
+            return Error{ErrorCode::IoError, "Failed to create ref directory: " + ec.message()};
+        }
         
         // Write commit hash to branch ref
-        std::ofstream rf(refFile);
+        std::ofstream rf(refFile, std::ios::binary);
+        if (!rf) {
+            return Error{ErrorCode::IoError, "Failed to write ref file"};
+        }
         rf << commitHash << "\n";
+        rf.flush();
+        if (!rf || !rf.good()) {
+            return Error{ErrorCode::IoError, "Failed to write commit hash to ref"};
+        }
     }
     
     // Print success message

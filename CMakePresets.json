@@ -23,11 +23,71 @@
         "CMAKE_CXX_STANDARD": "20",
         "GITTER_STRICT": "OFF"
       }
+    },
+    {
+      "name": "windows-debug",
+      "displayName": "Windows Debug (Visual Studio)",
+      "generator": "Visual Studio 17 2022",
+      "architecture": {
+        "value": "x64",
+        "strategy": "external"
+      },
+      "binaryDir": "${sourceDir}/build/windows-debug",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug",
+        "CMAKE_CXX_STANDARD": "20",
+        "GITTER_STRICT": "OFF",
+        "GITTER_BUILD_TESTS": "ON"
+      }
+    },
+    {
+      "name": "windows-release",
+      "displayName": "Windows Release (Visual Studio)",
+      "generator": "Visual Studio 17 2022",
+      "architecture": {
+        "value": "x64",
+        "strategy": "external"
+      },
+      "binaryDir": "${sourceDir}/build/windows-release",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "CMAKE_CXX_STANDARD": "20",
+        "GITTER_STRICT": "OFF",
+        "GITTER_BUILD_TESTS": "ON"
+      }
+    },
+    {
+      "name": "windows-ninja-debug",
+      "displayName": "Windows Debug (Ninja)",
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/build/windows-ninja-debug",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug",
+        "CMAKE_CXX_STANDARD": "20",
+        "GITTER_STRICT": "OFF",
+        "GITTER_BUILD_TESTS": "ON"
+      }
+    },
+    {
+      "name": "windows-ninja-release",
+      "displayName": "Windows Release (Ninja)",
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/build/windows-ninja-release",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "CMAKE_CXX_STANDARD": "20",
+        "GITTER_STRICT": "OFF",
+        "GITTER_BUILD_TESTS": "ON"
+      }
     }
   ],
   "buildPresets": [
     { "name": "linux-debug-build", "configurePreset": "linux-debug" },
-    { "name": "linux-release-build", "configurePreset": "linux-release" }
+    { "name": "linux-release-build", "configurePreset": "linux-release" },
+    { "name": "windows-debug-build", "configurePreset": "windows-debug" },
+    { "name": "windows-release-build", "configurePreset": "windows-release" },
+    { "name": "windows-ninja-debug-build", "configurePreset": "windows-ninja-debug" },
+    { "name": "windows-ninja-release-build", "configurePreset": "windows-ninja-release" }
   ]
 }
 

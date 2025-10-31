@@ -4,6 +4,61 @@ All notable changes to the Gitter project will be documented in this file.
 
 ## [Unreleased]
 
+### Added - Reliability & Code Quality Improvements (2025-11-02)
+
+#### Error Handling & Reliability
+- **File I/O Error Checking**
+  - All file write operations now verify success after writes
+  - Stream state validation (`out.good()`) after all writes
+  - Automatic cleanup of partial writes on failure
+  - Directory creation errors are properly checked and reported
+  - File read operations validate stream state and handle failures gracefully
+
+- **Atomic Index Writes**
+  - Index writes now use atomic pattern: write to `.index.tmp`, then rename
+  - Prevents index corruption on crashes or write failures
+  - Only renames temp file if write succeeded completely
+  - Automatic cleanup of temp files on failure
+  - Matches Git's lock file behavior (simplified for MVP)
+
+- **Path Normalization**
+  - All paths normalized consistently when storing in index
+  - Removes `./` prefix and normalizes slashes
+  - Prevents duplicate index entries for same file
+  - Ensures same file always has same path representation
+
+- **Input Validation**
+  - Hash format validation (40-char hex for SHA-1) before storing in index
+  - Invalid entries skipped during index load (recover from corruption)
+  - Numeric field conversion wrapped in try-catch to prevent crashes
+  - Graceful recovery from corrupted index files
+
+#### Code Quality
+- **Constants Extraction**
+  - Created `src/core/Constants.hpp` with centralized constants
+  - Replaced magic numbers (40, 2, 10) with named constants
+  - Improves maintainability and readability
+
+- **Status Command Optimization**
+  - Fast path: Skip expensive hash computation when size AND mtime match
+  - Matches Git's performance optimization for large repositories
+  - Only hashes files when size or mtime suggests change
+  - Critical for performance with large file counts
+
+- **Error Handling Consistency**
+  - ObjectStore exceptions wrapped in try-catch in commands
+  - Consistent conversion to `Expected<T>` pattern
+  - Graceful error handling for non-critical failures (warnings)
+
+#### Files Modified
+- `src/core/Constants.hpp` (new) - Centralized constants
+- `src/core/ObjectStore.cpp` - Added error checks, improved robustness
+- `src/core/Index.cpp` - Atomic writes, path normalization, validation
+- `src/cli/commands/AddCommand.cpp` - Exception handling
+- `src/cli/commands/CommitCommand.cpp` - Error checks, exception handling
+- `src/cli/commands/StatusCommand.cpp` - Optimization, exception handling
+- `src/cli/commands/LogCommand.cpp` - Error checks, constants usage
+
 ### Added - Commit and Log Commands (2025-11-01)
 
 #### Commit Implementation

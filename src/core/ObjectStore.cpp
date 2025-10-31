@@ -12,6 +12,7 @@
 #include "util/Sha1Hasher.hpp"
 #include "util/Sha256Hasher.hpp"
 #include "core/CommitObject.hpp"
+#include "core/Constants.hpp"
 
 #include <zlib.h>
 
@@ -105,13 +106,13 @@ fs::path ObjectStore::objectsDir() const {
 }
 
 fs::path ObjectStore::getObjectPath(const std::string& hash) const {
-    // Git stores objects as: .git/objects/<first-2-chars>/<remaining-chars>
-    // Example: abc123... → .git/objects/ab/c123...
-    if (hash.length() < 3) {
-        throw std::runtime_error("Invalid hash length");
+    // Git stores objects as: .git/objects/<first-N-chars>/<remaining-chars>
+    // We use first 2 chars for directory (Git uses 2)
+    if (hash.length() < Constants::OBJECT_DIR_LENGTH + 1) {
+        throw std::runtime_error("Invalid hash length: " + hash);
     }
-    std::string dir = hash.substr(0, 2);
-    std::string file = hash.substr(2);
+    std::string dir = hash.substr(0, Constants::OBJECT_DIR_LENGTH);
+    std::string file = hash.substr(Constants::OBJECT_DIR_LENGTH);
     return objectsDir() / dir / file;
 }
 
@@ -132,15 +133,27 @@ std::string ObjectStore::writeBlob(const std::string& content) {
     // Only write if doesn't exist
     if (!fs::exists(objPath)) {
         // Create directory if needed
-        fs::create_directories(objPath.parent_path());
+        std::error_code ec;
+        fs::create_directories(objPath.parent_path(), ec);
+        if (ec) {
+            throw std::runtime_error("Failed to create object directory: " + ec.message());
+        }
         
         // Compress with zlib
         std::vector<uint8_t> compressed = zlibCompress(fullObject);
         
         // Write compressed data
         std::ofstream out(objPath, std::ios::binary);
+        if (!out) {
+            throw std::runtime_error("Failed to open object file for writing: " + hash);
+        }
         out.write(reinterpret_cast<const char*>(compressed.data()), 
                   static_cast<std::streamsize>(compressed.size()));
+        out.flush();
+        if (!out || !out.good()) {
+            fs::remove(objPath);  // Clean up partial write
+            throw std::runtime_error("Failed to write object: " + hash);
+        }
     }
     
     return hash;
@@ -163,15 +176,27 @@ std::string ObjectStore::writeTree(const std::string& content) {
     // Only write if doesn't exist
     if (!fs::exists(objPath)) {
         // Create directory if needed
-        fs::create_directories(objPath.parent_path());
+        std::error_code ec;
+        fs::create_directories(objPath.parent_path(), ec);
+        if (ec) {
+            throw std::runtime_error("Failed to create object directory: " + ec.message());
+        }
         
         // Compress with zlib
         std::vector<uint8_t> compressed = zlibCompress(fullObject);
         
         // Write compressed data
         std::ofstream out(objPath, std::ios::binary);
+        if (!out) {
+            throw std::runtime_error("Failed to open object file for writing");
+        }
         out.write(reinterpret_cast<const char*>(compressed.data()), 
                   static_cast<std::streamsize>(compressed.size()));
+        out.flush();
+        if (!out || !out.good()) {
+            fs::remove(objPath);  // Clean up partial write
+            throw std::runtime_error("Failed to write tree object");
+        }
     }
     
     return hash;
@@ -194,15 +219,27 @@ std::string ObjectStore::writeCommit(const std::string& content) {
     // Only write if doesn't exist
     if (!fs::exists(objPath)) {
         // Create directory if needed
-        fs::create_directories(objPath.parent_path());
+        std::error_code ec;
+        fs::create_directories(objPath.parent_path(), ec);
+        if (ec) {
+            throw std::runtime_error("Failed to create object directory: " + ec.message());
+        }
         
         // Compress with zlib
         std::vector<uint8_t> compressed = zlibCompress(fullObject);
         
         // Write compressed data
         std::ofstream out(objPath, std::ios::binary);
+        if (!out) {
+            throw std::runtime_error("Failed to open commit file for writing");
+        }
         out.write(reinterpret_cast<const char*>(compressed.data()), 
                   static_cast<std::streamsize>(compressed.size()));
+        out.flush();
+        if (!out || !out.good()) {
+            fs::remove(objPath);  // Clean up partial write
+            throw std::runtime_error("Failed to write commit object");
+        }
     }
     
     return hash;
@@ -210,14 +247,26 @@ std::string ObjectStore::writeCommit(const std::string& content) {
 
 std::string ObjectStore::writeBlobFromFile(const fs::path& filePath) {
     std::ifstream in(filePath, std::ios::binary);
+    if (!in) {
+        throw std::runtime_error("Failed to open file for reading: " + filePath.string());
+    }
     std::vector<uint8_t> buf((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
+    if (in.bad() && !in.eof()) {
+        throw std::runtime_error("Error reading file: " + filePath.string());
+    }
     std::string bytes(reinterpret_cast<const char*>(buf.data()), buf.size());
     return writeBlob(bytes);
 }
 
 std::string ObjectStore::hashFileContent(const fs::path& filePath) {
     std::ifstream in(filePath, std::ios::binary);
+    if (!in) {
+        throw std::runtime_error("Failed to open file for hashing: " + filePath.string());
+    }
     std::vector<uint8_t> buf((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
+    if (in.bad() && !in.eof()) {
+        throw std::runtime_error("Error reading file for hashing: " + filePath.string());
+    }
     std::string content(reinterpret_cast<const char*>(buf.data()), buf.size());
     
     // Git object format for hash computation
@@ -239,8 +288,17 @@ std::string ObjectStore::readObject(const std::string& hash) {
     
     // Read compressed data
     std::ifstream in(objPath, std::ios::binary);
+    if (!in) {
+        throw std::runtime_error("Failed to open object file for reading: " + hash);
+    }
     std::vector<uint8_t> compressed((std::istreambuf_iterator<char>(in)), 
                                      std::istreambuf_iterator<char>());
+    if (in.bad() && !in.eof()) {
+        throw std::runtime_error("Error reading object file: " + hash);
+    }
+    if (compressed.empty()) {
+        throw std::runtime_error("Object file is empty: " + hash);
+    }
     
     // Decompress
     return zlibDecompress(compressed);
@@ -289,9 +347,43 @@ CommitObject ObjectStore::readCommit(const std::string& hash) {
         
         // Parse header lines
         if (line.rfind("tree ", 0) == 0) {
-            commit.treeHash = line.substr(5);
+            // Tree hash is exactly SHA1_HEX_LENGTH characters (SHA-1 hex)
+            std::string hashPart = line.substr(5);
+            // Trim whitespace (in case of trailing spaces)
+            size_t first = hashPart.find_first_not_of(" \t");
+            if (first != std::string::npos) {
+                hashPart.erase(0, first);
+                size_t last = hashPart.find_last_not_of(" \t");
+                if (last != std::string::npos) {
+                    hashPart.erase(last + 1);
+                }
+            } else {
+                hashPart.clear();
+            }
+            if (hashPart.length() >= Constants::SHA1_HEX_LENGTH) {
+                commit.treeHash = hashPart.substr(0, Constants::SHA1_HEX_LENGTH);
+            } else {
+                throw std::runtime_error("Invalid tree hash length in commit: " + hash);
+            }
         } else if (line.rfind("parent ", 0) == 0) {
-            commit.parentHashes.push_back(line.substr(7));
+            // Parent hash is exactly SHA1_HEX_LENGTH characters (SHA-1 hex)
+            std::string hashPart = line.substr(7);
+            // Trim whitespace (in case of trailing spaces)
+            size_t first = hashPart.find_first_not_of(" \t");
+            if (first != std::string::npos) {
+                hashPart.erase(0, first);
+                size_t last = hashPart.find_last_not_of(" \t");
+                if (last != std::string::npos) {
+                    hashPart.erase(last + 1);
+                }
+            } else {
+                hashPart.clear();
+            }
+            if (hashPart.length() >= Constants::SHA1_HEX_LENGTH) {
+                commit.parentHashes.push_back(hashPart.substr(0, Constants::SHA1_HEX_LENGTH));
+            } else {
+                throw std::runtime_error("Invalid parent hash length in commit: " + hash);
+            }
         } else if (line.rfind("author ", 0) == 0) {
             // Format: author Name <email> timestamp timezone
             std::string authorLine = line.substr(7);
