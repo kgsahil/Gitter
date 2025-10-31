@@ -7,6 +7,7 @@
 namespace gitter {
 
 class IHasher;
+struct CommitObject;
 
 /**
  * @brief Git object storage manager
@@ -103,6 +104,14 @@ public:
      * @return Decompressed object content (including header)
      */
     std::string readObject(const std::string& hash);
+    
+    /**
+     * @brief Parse a commit object from storage
+     * @param hash Commit hash (hex)
+     * @return Parsed CommitObject structure
+     * @throws std::runtime_error if commit not found or parse error
+     */
+    CommitObject readCommit(const std::string& hash);
 
 private:
     std::filesystem::path root;       // Repository root path

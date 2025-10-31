@@ -11,6 +11,7 @@
 #include "util/IHasher.hpp"
 #include "util/Sha1Hasher.hpp"
 #include "util/Sha256Hasher.hpp"
+#include "core/CommitObject.hpp"
 
 #include <zlib.h>
 
@@ -243,6 +244,93 @@ std::string ObjectStore::readObject(const std::string& hash) {
     
     // Decompress
     return zlibDecompress(compressed);
+}
+
+CommitObject ObjectStore::readCommit(const std::string& hash) {
+    // Read and decompress commit object
+    std::string fullObject = readObject(hash);
+    
+    // Find header end (type size\0)
+    size_t headerEnd = fullObject.find('\0');
+    if (headerEnd == std::string::npos) {
+        throw std::runtime_error("Invalid commit object format");
+    }
+    
+    // Extract header and verify it's a commit
+    std::string header = fullObject.substr(0, headerEnd);
+    if (header.rfind("commit ", 0) != 0) {
+        throw std::runtime_error("Not a commit object");
+    }
+    
+    // Extract content after header
+    std::string content = fullObject.substr(headerEnd + 1);
+    
+    // Parse commit content
+    CommitObject commit;
+    commit.hash = hash;
+    
+    std::istringstream iss(content);
+    std::string line;
+    bool inMessage = false;
+    std::ostringstream messageBuilder;
+    
+    while (std::getline(iss, line)) {
+        if (inMessage) {
+            // Everything after blank line is message
+            messageBuilder << line << "\n";
+            continue;
+        }
+        
+        if (line.empty()) {
+            // Blank line marks start of message
+            inMessage = true;
+            continue;
+        }
+        
+        // Parse header lines
+        if (line.rfind("tree ", 0) == 0) {
+            commit.treeHash = line.substr(5);
+        } else if (line.rfind("parent ", 0) == 0) {
+            commit.parentHashes.push_back(line.substr(7));
+        } else if (line.rfind("author ", 0) == 0) {
+            // Format: author Name <email> timestamp timezone
+            std::string authorLine = line.substr(7);
+            size_t emailStart = authorLine.find('<');
+            size_t emailEnd = authorLine.find('>');
+            if (emailStart != std::string::npos && emailEnd != std::string::npos) {
+                commit.authorName = authorLine.substr(0, emailStart - 1);
+                commit.authorEmail = authorLine.substr(emailStart + 1, emailEnd - emailStart - 1);
+                
+                // Parse timestamp and timezone
+                std::string rest = authorLine.substr(emailEnd + 2);
+                std::istringstream restStream(rest);
+                restStream >> commit.authorTimestamp >> commit.authorTimezone;
+            }
+        } else if (line.rfind("committer ", 0) == 0) {
+            // Format: committer Name <email> timestamp timezone
+            std::string committerLine = line.substr(10);
+            size_t emailStart = committerLine.find('<');
+            size_t emailEnd = committerLine.find('>');
+            if (emailStart != std::string::npos && emailEnd != std::string::npos) {
+                commit.committerName = committerLine.substr(0, emailStart - 1);
+                commit.committerEmail = committerLine.substr(emailStart + 1, emailEnd - emailStart - 1);
+                
+                // Parse timestamp and timezone
+                std::string rest = committerLine.substr(emailEnd + 2);
+                std::istringstream restStream(rest);
+                restStream >> commit.committerTimestamp >> commit.committerTimezone;
+            }
+        }
+    }
+    
+    commit.message = messageBuilder.str();
+    
+    // Remove trailing newline from message
+    if (!commit.message.empty() && commit.message.back() == '\n') {
+        commit.message.pop_back();
+    }
+    
+    return commit;
 }
 
 }

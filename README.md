@@ -12,6 +12,7 @@ A minimal Git-like CLI tool that mimics core Git functionality, built with C++20
 | `gitter init [path]` | Initialize a new repository | `gitter init` or `gitter init myproject/` |
 | `gitter add <pathspec>` | Stage files for commit | `gitter add file.txt`, `gitter add *.cpp`, `gitter add .` |
 | `gitter commit -m <msg>` | Create a commit | `gitter commit -m "Fix bug"`, `gitter commit -am "Quick fix"` |
+| `gitter log` | Display commit history | `gitter log` (shows last 10 commits) |
 | `gitter status` | Show working tree status | `gitter status` |
 | `gitter restore --staged <pathspec>` | Unstage files | `gitter restore --staged file.txt`, `gitter restore --staged *.cpp` |
 
@@ -276,6 +277,8 @@ gitter status
 - **Commit creation with tree and commit objects**
 - **Hierarchical tree building from index**
 - **Commit history with parent references**
+- **Log display (last 10 commits, newest first)**
+- **Commit object parsing and traversal**
 - Status detection (staged/modified/untracked)
 - Unstaging with patterns
 - Git-compliant blob/tree/commit object storage
@@ -286,12 +289,12 @@ gitter status
 - File permissions tracking (executable bit)
 
 ### Next Steps 🚧
-- `log` - Display commit history
 - `checkout` - Switch branches and restore working tree
-- Branch management (create, delete, list)
-- Diff output for changes
-- Merge detection (basic)
-- Remote operations (future)
+- Branch management (create, delete, list branches)
+- Diff output for file changes
+- Merge commits (basic merge support)
+- Remote operations (push/pull/fetch)
+- Tag support
 
 ## Documentation
 
@@ -299,6 +302,7 @@ The code is well-documented with Doxygen-style comments and comprehensive guides
 
 - **[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)** - Overall project architecture and design patterns
 - **[docs/COMMIT_IMPLEMENTATION.md](docs/COMMIT_IMPLEMENTATION.md)** - Commit creation with trees and objects
+- **[docs/LOG_IMPLEMENTATION.md](docs/LOG_IMPLEMENTATION.md)** - Commit history display and parsing
 - **[docs/HASHER_ARCHITECTURE.md](docs/HASHER_ARCHITECTURE.md)** - Strategy Pattern for hash algorithms
 - **[docs/SHA1_STRATEGY_PATTERN.md](docs/SHA1_STRATEGY_PATTERN.md)** - Git-compliant object storage details
 - **[docs/REFACTORING_SUMMARY.md](docs/REFACTORING_SUMMARY.md)** - Recent hasher refactoring changes
