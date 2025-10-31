@@ -11,7 +11,7 @@ A minimal Git-like CLI tool that mimics core Git functionality, built with C++20
 | `gitter help [command]` | Show help or detailed command help | `gitter help commit` |
 | `gitter init [path]` | Initialize a new repository | `gitter init` or `gitter init myproject/` |
 | `gitter add <pathspec>` | Stage files for commit | `gitter add file.txt`, `gitter add *.cpp`, `gitter add .` |
-| `gitter commit -m <msg>` | Create a commit | `gitter commit -m "Fix bug"`, `gitter commit -am "Quick fix"` |
+| `gitter commit -m <msg>` | Create a commit | `gitter commit -m "Fix bug"`, `gitter commit -am "Quick fix"`, `gitter commit -m "Title" -m "Details"` |
 | `gitter log` | Display commit history | `gitter log` (shows last 10 commits) |
 | `gitter status` | Show working tree status | `gitter status` |
 | `gitter restore --staged <pathspec>` | Unstage files | `gitter restore --staged file.txt`, `gitter restore --staged *.cpp` |
@@ -380,9 +380,13 @@ echo "world" > file2.txt
 gitter add *.txt
 gitter status
 
-# Create first commit
+# Create first commit (single message)
 gitter commit -m "Initial commit"
 gitter status  # Should show: nothing to commit, working tree clean
+
+# Multi-paragraph commit message
+gitter commit -m "Summary" -m "Detailed explanation" -m "Notes"
+gitter log  # View commit with blank lines separating paragraphs
 
 # View commit history
 gitter log

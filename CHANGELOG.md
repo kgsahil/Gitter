@@ -4,6 +4,31 @@ All notable changes to the Gitter project will be documented in this file.
 
 ## [Unreleased]
 
+### Added - Multiple -m Flag Support for Commit Messages (2025-01-02)
+
+#### Multi-Paragraph Commit Messages
+- **Multiple `-m` Flags**: Support for multiple `-m` flags in commit command
+  - Each `-m` flag adds a new paragraph separated by a blank line
+  - Examples: `gitter commit -m "Title" -m "Details"`, `gitter commit -m "First" -m "Second" -m "Third"`
+  - Matches Git's behavior exactly
+
+#### Implementation
+- Changed message parsing from single string to vector collection
+- Combines messages with blank line separators (`\n`)
+- Preserves trailing newline in final message
+- Works with both `-m` and `-am` flags
+
+#### Testing
+- Added `CommitWithMultipleMessages` test (2 paragraphs)
+- Added `CommitWithThreeMessages` test (3 paragraphs)
+- Verifies proper blank line insertion between messages
+
+#### Files Modified
+- `src/cli/commands/CommitCommand.cpp` - Multi-message parsing logic
+- `src/cli/commands/CommitCommand.hpp` - Updated help synopsis
+- `test/commands/test_commit.cpp` - Added multi-message tests
+- `README.md` - Updated examples and usage
+
 ### Refactored - HEAD Management Centralization (2025-01-02)
 
 #### Code Duplication Elimination

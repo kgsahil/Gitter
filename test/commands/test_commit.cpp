@@ -467,3 +467,49 @@ TEST_F(CommitCommandTest, CommitWithANoChanges) {
     EXPECT_TRUE(result.error().message.find("nothing to commit") != std::string::npos);
 }
 
+// Test: Commit with multiple -m flags (multi-paragraph message)
+TEST_F(CommitCommandTest, CommitWithMultipleMessages) {
+    AddCommand addCmd;
+    CommitCommand commitCmd;
+    
+    // Add file
+    createFile(tempDir, "file.txt", "content");
+    addCmd.execute(ctx, {"file.txt"});
+    
+    // Commit with multiple messages
+    auto result = commitCmd.execute(ctx, {"-m", "First line", "-m", "Second paragraph"});
+    EXPECT_TRUE(result.has_value());
+    
+    // Verify the commit message combines with blank lines
+    ObjectStore store(tempDir);
+    auto headRes = Repository::resolveHEAD(tempDir);
+    ASSERT_TRUE(headRes);
+    std::string hash = headRes.value().first;
+    
+    CommitObject commit = store.readCommit(hash);
+    EXPECT_EQ(commit.message, "First line\n\nSecond paragraph\n");
+}
+
+// Test: Commit with three -m flags
+TEST_F(CommitCommandTest, CommitWithThreeMessages) {
+    AddCommand addCmd;
+    CommitCommand commitCmd;
+    
+    // Add file
+    createFile(tempDir, "file.txt", "content");
+    addCmd.execute(ctx, {"file.txt"});
+    
+    // Commit with three messages
+    auto result = commitCmd.execute(ctx, {"-m", "Summary", "-m", "Details", "-m", "Notes"});
+    EXPECT_TRUE(result.has_value());
+    
+    // Verify the commit message combines with blank lines
+    ObjectStore store(tempDir);
+    auto headRes = Repository::resolveHEAD(tempDir);
+    ASSERT_TRUE(headRes);
+    std::string hash = headRes.value().first;
+    
+    CommitObject commit = store.readCommit(hash);
+    EXPECT_EQ(commit.message, "Summary\n\nDetails\n\nNotes\n");
+}
+

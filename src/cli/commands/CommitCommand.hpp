@@ -10,7 +10,7 @@ public:
     const char* name() const override { return "commit"; }
     const char* description() const override { return "Commit staged changes"; }
     const char* helpNameLine() const override { return "commit -  Record changes to the repository"; }
-    const char* helpSynopsis() const override { return "gitter commit -m  [-a] <msg>"; }
+    const char* helpSynopsis() const override { return "gitter commit -m <msg> [-m <msg>...] [-a]"; }
     const char* helpDescription() const override { return "Create a new commit containing the current content of the index."; }
     std::vector<std::pair<std::string, std::string>> helpOptions() const override {
         return { {"-a", "Automatically stage modified tracked files."}, {"-m <msg>", "Use <msg> as the commit message; multiple -m concatenate paragraphs."} };

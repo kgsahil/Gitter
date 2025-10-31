@@ -28,30 +28,46 @@ namespace fs = std::filesystem;
  *   3. Updates current branch reference
  * 
  * Supports:
- *   -m <msg> : Commit message (required)
- *   -a       : Auto-stage all modified tracked files (optional)
- *   -am <msg>: Combine -a and -m flags
+ *   -m <msg>  : Commit message (required, multiple allowed for multi-line)
+ *   -a        : Auto-stage all modified tracked files (optional)
+ *   -am <msg> : Combine -a and -m flags
+ * 
+ * Multiple -m flags create multi-paragraph messages separated by blank lines.
+ * Example: `-m "First line" -m "Second paragraph"` creates:
+ *   First line
+ *   
+ *   Second paragraph
  */
 Expected<void> CommitCommand::execute(const AppContext&, const std::vector<std::string>& args) {
-    // Parse arguments: -m <message> and optional -a
-    std::string message;
+    // Parse arguments: -m <message> (multiple allowed) and optional -a
+    std::vector<std::string> messageParts;
     bool autoStage = false;
     
     for (size_t i = 0; i < args.size(); ++i) {
         if (args[i] == "-m" && i + 1 < args.size()) {
-            message = args[i + 1];
+            messageParts.push_back(args[i + 1]);
             ++i;  // Skip next arg
         } else if (args[i] == "-a") {
             autoStage = true;
         } else if (args[i] == "-am" && i + 1 < args.size()) {
             autoStage = true;
-            message = args[i + 1];
+            messageParts.push_back(args[i + 1]);
             ++i;
         }
     }
     
-    if (message.empty()) {
+    if (messageParts.empty()) {
         return Error{ErrorCode::InvalidArgs, "commit: no commit message provided (-m required)"};
+    }
+    
+    // Combine message parts with blank lines (Git behavior)
+    // Each -m adds a new paragraph separated by a blank line
+    std::string message;
+    for (size_t i = 0; i < messageParts.size(); ++i) {
+        if (i > 0) {
+            message += "\n\n";  // Add blank line between paragraphs (two newlines)
+        }
+        message += messageParts[i];
     }
     
     // Find repository root
