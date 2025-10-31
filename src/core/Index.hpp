@@ -52,6 +52,9 @@ public:
     /// Remove an entry from the index by path
     void remove(const std::string& path);
     
+    /// Clear all entries from the index
+    void clear();
+    
     /// Get read-only access to all index entries
     const std::unordered_map<std::string, IndexEntry>& entries() const { return pathToEntry; }
     

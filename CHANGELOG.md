@@ -4,6 +4,35 @@ All notable changes to the Gitter project will be documented in this file.
 
 ## [Unreleased]
 
+### Added - Reset Command for Undoing Commits (2025-11-02)
+
+#### Reset Implementation
+- **Reset Command** (`gitter reset`)
+  - Supports `HEAD~n` syntax to reset to previous commits
+  - Examples: `gitter reset HEAD~1`, `gitter reset HEAD~2`
+  - Moves branch reference (HEAD) to target commit
+  - Clears index leaving all changes unindexed
+  - Preserves working tree (files unchanged)
+
+#### Index Enhancement
+- **Clear Method**: Added `Index::clear()` to remove all entries
+  - Used by reset command to clear staging area
+  - Atomic write ensures index integrity
+
+#### Error Handling
+- Validates target commit specifier format
+- Detects attempts to go beyond root commit
+- Handles empty repositories gracefully
+- Returns appropriate error messages
+
+#### Files Added/Modified
+- `src/cli/commands/ResetCommand.hpp/cpp` (new) - Reset command implementation
+- `src/core/Index.hpp/cpp` - Added `clear()` method
+- `CMakeLists.txt` - Added reset command to build
+- `src/main.cpp` - Registered reset command
+- `test/commands/test_reset.cpp` (new) - Comprehensive unit tests
+- `test/integration/test_git_workflow.cpp` - Added reset workflow test
+
 ### Changed - Commit Command Auto-Staging & Behavior (2025-11-02)
 
 #### Auto-Staging Implementation

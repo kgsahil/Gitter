@@ -54,6 +54,7 @@ add_library(gitter_lib
   src/cli/commands/CheckoutCommand.cpp
   src/cli/commands/RestoreCommand.cpp
   src/cli/commands/CatFileCommand.cpp
+  src/cli/commands/ResetCommand.cpp
   src/core/ObjectStore.cpp
   src/core/Index.cpp
   src/core/TreeBuilder.cpp
@@ -95,6 +96,7 @@ if(GITTER_BUILD_TESTS)
     test/commands/test_status.cpp
     test/commands/test_log.cpp
     test/commands/test_restore.cpp
+    test/commands/test_reset.cpp
     test/core/test_repository.cpp
     test/core/test_index.cpp
     test/core/test_objectstore.cpp

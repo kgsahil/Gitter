@@ -19,6 +19,7 @@
 #include "cli/commands/CatFileCommand.hpp"
 #include "cli/commands/HelpCommand.hpp"
 #include "cli/commands/CheckoutCommand.hpp"
+#include "cli/commands/ResetCommand.hpp"
 #include "util/Sha1Hasher.hpp"
 
 namespace fs = std::filesystem;
@@ -70,6 +71,7 @@ private:
         f.registerCreator("checkout", [] { return std::make_unique<CheckoutCommand>(); });
         f.registerCreator("restore", [] { return std::make_unique<RestoreCommand>(); });
         f.registerCreator("cat-file", [] { return std::make_unique<CatFileCommand>(); });
+        f.registerCreator("reset", [] { return std::make_unique<ResetCommand>(); });
     }
 };
 
@@ -500,6 +502,87 @@ TEST_F(GitWorkflowTest, AddDirectoryRecursion) {
                 statusOutput.find("dir1\\file2.txt") != std::string::npos);
     EXPECT_TRUE(statusOutput.find("dir1/file3.cpp") != std::string::npos ||
                 statusOutput.find("dir1\\file3.cpp") != std::string::npos);
+}
+
+/**
+ * @brief Test: Reset workflow - init, add, commit, reset
+ * Positive: Reset should move HEAD back and clear index
+ */
+TEST_F(GitWorkflowTest, ResetWorkflow) {
+    // Setup
+    auto initCmd = CommandFactory::instance().create("init");
+    auto addCmd = CommandFactory::instance().create("add");
+    auto commitCmd = CommandFactory::instance().create("commit");
+    auto resetCmd = CommandFactory::instance().create("reset");
+    auto logCmd = CommandFactory::instance().create("log");
+    auto statusCmd = CommandFactory::instance().create("status");
+    
+    // 1. Initialize repository
+    invoker.invoke(*initCmd, ctx, {});
+    
+    // 2. Create initial commit
+    createFile(repoPath, "file1.txt", "content1");
+    invoker.invoke(*addCmd, ctx, {"file1.txt"});
+    invoker.invoke(*commitCmd, ctx, {"-m", "First"});
+    
+    // Get first commit hash
+    std::ifstream headFile(repoPath / ".gitter" / "HEAD");
+    std::string headContent;
+    std::getline(headFile, headContent);
+    headFile.close();
+    std::string refPath = headContent.substr(5);
+    std::ifstream refFile(repoPath / ".gitter" / refPath);
+    std::string firstHash;
+    std::getline(refFile, firstHash);
+    refFile.close();
+    
+    // 3. Create second commit
+    createFile(repoPath, "file2.txt", "content2");
+    invoker.invoke(*addCmd, ctx, {"file2.txt"});
+    invoker.invoke(*commitCmd, ctx, {"-m", "Second"});
+    
+    // Verify log shows both commits
+    testing::internal::CaptureStdout();
+    invoker.invoke(*logCmd, ctx, {});
+    std::string logOutput = testing::internal::GetCapturedStdout();
+    EXPECT_TRUE(logOutput.find("First") != std::string::npos);
+    EXPECT_TRUE(logOutput.find("Second") != std::string::npos);
+    
+    // 4. Reset to HEAD~1
+    auto result = invoker.invoke(*resetCmd, ctx, {"HEAD~1"});
+    EXPECT_TRUE(result) << result.error().message;
+    
+    // Verify HEAD now points to first commit
+    std::ifstream headFile2(repoPath / ".gitter" / "HEAD");
+    std::string headContent2;
+    std::getline(headFile2, headContent2);
+    headFile2.close();
+    std::string refPath2 = headContent2.substr(5);
+    std::ifstream refFile2(repoPath / ".gitter" / refPath2);
+    std::string resetHash;
+    std::getline(refFile2, resetHash);
+    refFile2.close();
+    EXPECT_EQ(firstHash, resetHash);
+    
+    // Verify log shows only first commit
+    testing::internal::CaptureStdout();
+    invoker.invoke(*logCmd, ctx, {});
+    logOutput = testing::internal::GetCapturedStdout();
+    EXPECT_TRUE(logOutput.find("First") != std::string::npos);
+    EXPECT_EQ(logOutput.find("Second"), std::string::npos); // Second should be gone
+    
+    // Verify index is cleared
+    Index index;
+    ASSERT_TRUE(index.load(repoPath));
+    EXPECT_TRUE(index.entries().empty());
+    
+    // Verify file2 still exists in working tree (untracked)
+    EXPECT_TRUE(fs::exists(repoPath / "file2.txt"));
+    testing::internal::CaptureStdout();
+    invoker.invoke(*statusCmd, ctx, {});
+    std::string statusOutput = testing::internal::GetCapturedStdout();
+    EXPECT_TRUE(statusOutput.find("Untracked files") != std::string::npos);
+    EXPECT_TRUE(statusOutput.find("file2.txt") != std::string::npos);
 }
 
 } // namespace gitter::test

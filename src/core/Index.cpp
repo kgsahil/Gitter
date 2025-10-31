@@ -162,6 +162,10 @@ void Index::remove(const std::string& path) {
     pathToEntry.erase(normalizedPath);
 }
 
+void Index::clear() {
+    pathToEntry.clear();
+}
+
 }
 
 

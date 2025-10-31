@@ -15,6 +15,7 @@ A minimal Git-like CLI tool that mimics core Git functionality, built with C++20
 | `gitter log` | Display commit history | `gitter log` (shows last 10 commits) |
 | `gitter status` | Show working tree status | `gitter status` |
 | `gitter restore --staged <pathspec>` | Unstage files | `gitter restore --staged file.txt`, `gitter restore --staged *.cpp` |
+| `gitter reset <commit>` | Reset HEAD to a commit | `gitter reset HEAD~1`, `gitter reset HEAD~2` |
 | `gitter cat-file <type> <hash>` | Inspect Git objects | `gitter cat-file blob abc123...`, `gitter cat-file -t abc123...` |
 
 ### Pattern Matching Support
@@ -195,6 +196,21 @@ gitter restore --staged *.cpp
 gitter restore --staged src/*.h
 ```
 
+### Reset Commits
+
+```bash
+# Reset to previous commit
+gitter reset HEAD~1
+
+# Reset two commits back
+gitter reset HEAD~2
+
+# Reset to current HEAD (no change)
+gitter reset HEAD
+```
+
+**Note:** `gitter reset` moves HEAD to the specified commit and clears the index, leaving all changes in the working tree unindexed.
+
 ### Inspect Objects
 
 ```bash
@@ -268,6 +284,15 @@ gitter cat-file -s abc123...
 4. **Display**: Git-style formatted output (hash, author, date, message)
 5. **Stop**: At root commit or after 10 commits
 
+### How Reset Works
+
+1. **Parse Target**: Extract commit specifier (HEAD, HEAD~n)
+2. **Resolve HEAD**: Read current commit hash from branch reference
+3. **Traverse Chain**: Follow parent pointers back `n` steps to find target commit
+4. **Update HEAD**: Write target commit hash to branch reference
+5. **Clear Index**: Remove all staged files (changes become unindexed)
+6. **Silent Success**: No output (Git-like behavior)
+
 ### Tree Storage
 
 See [docs/TREE_STORAGE.md](docs/TREE_STORAGE.md) for detailed explanation of how Git stores directory trees.
@@ -338,7 +363,7 @@ ctest --output-on-failure
 ### Test Coverage
 
 - **Unit Tests**: Individual components (Index, ObjectStore, TreeBuilder, etc.)
-- **Command Tests**: All CLI commands (init, add, commit, status, log, restore)
+- **Command Tests**: All CLI commands (init, add, commit, status, log, restore, reset)
 - **Integration Tests**: Complete Git-like workflows combining multiple commands
 - **Edge Cases**: Positive and negative scenarios, error handling
 
@@ -374,6 +399,11 @@ gitter log  # Should show 2 commits
 # Unstage
 gitter restore --staged file1.txt
 gitter status
+
+# Reset to previous commit
+gitter reset HEAD~1
+gitter log  # Should show only 1 commit
+gitter status  # Reset files should be untracked
 ```
 
 ## Roadmap
@@ -389,6 +419,7 @@ gitter status
 - **Auto-staging with `-a` and `-am` flags**
 - **Duplicate commit prevention**
 - **Silent commit output (Git-like)**
+- **Reset command with HEAD~n syntax**
 - Status detection (staged/modified/untracked) with Git optimization
 - Unstaging with patterns
 - Git-compliant blob/tree/commit object storage
@@ -415,6 +446,7 @@ The code is well-documented with Doxygen-style comments and comprehensive guides
 - **[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)** - Overall project architecture and design patterns
 - **[docs/COMMIT_IMPLEMENTATION.md](docs/COMMIT_IMPLEMENTATION.md)** - Commit creation with trees and objects
 - **[docs/LOG_IMPLEMENTATION.md](docs/LOG_IMPLEMENTATION.md)** - Commit history display and parsing
+- **[docs/RESET_IMPLEMENTATION.md](docs/RESET_IMPLEMENTATION.md)** - Reset command to undo commits
 - **[docs/STATUS_FIX.md](docs/STATUS_FIX.md)** - Status command three-way comparison fix
 - **[docs/HASHER_ARCHITECTURE.md](docs/HASHER_ARCHITECTURE.md)** - Strategy Pattern for hash algorithms
 - **[docs/SHA1_STRATEGY_PATTERN.md](docs/SHA1_STRATEGY_PATTERN.md)** - Git-compliant object storage details

@@ -16,6 +16,7 @@
 #include "cli/commands/CheckoutCommand.hpp"
 #include "cli/commands/RestoreCommand.hpp"
 #include "cli/commands/CatFileCommand.hpp"
+#include "cli/commands/ResetCommand.hpp"
 #include "util/Logger.hpp"
 
 using namespace gitter;
@@ -31,6 +32,7 @@ static void registerCommands() {
     f.registerCreator("checkout", [] { return std::make_unique<CheckoutCommand>(); });
     f.registerCreator("restore", [] { return std::make_unique<RestoreCommand>(); });
     f.registerCreator("cat-file", [] { return std::make_unique<CatFileCommand>(); });
+    f.registerCreator("reset", [] { return std::make_unique<ResetCommand>(); });
 }
 
 int main(int argc, char** argv) {

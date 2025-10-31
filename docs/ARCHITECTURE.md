@@ -16,6 +16,7 @@ src/
 │       ├── LogCommand.*     # ✅ Fully implemented
 │       ├── StatusCommand.*  # ✅ Fully implemented (with three-way comparison)
 │       ├── RestoreCommand.* # ✅ Fully implemented (with glob patterns)
+│       ├── ResetCommand.*   # ✅ Fully implemented (with HEAD~n syntax)
 │       └── CheckoutCommand.* (stub)
 │
 ├── core/                     # Git core logic
@@ -259,6 +260,27 @@ LogCommand:
   4. Stop after 10 commits or end of chain
 ```
 
+### Reset Command Flow
+```
+User: gitter reset HEAD~1
+  ↓
+ResetCommand:
+  1. Parse target: HEAD, HEAD~1, HEAD~2, etc.
+  2. Repository.discoverRoot() finds .gitter/
+  3. Resolve HEAD to get current commit hash
+  4. Traverse parent chain:
+     - ObjectStore.readCommit(hash)
+     - Follow parentHashes[0] pointer
+     - Repeat n times for HEAD~n
+  5. Update branch reference:
+     - Write target commit hash to .gitter/refs/heads/main
+  6. Clear index:
+     - Index.clear()
+     - Index.save() writes empty index
+  ↓
+Silent success (no output, Git-like)
+```
+
 ## Key Principles
 
 ### 1. **Separation of Concerns**
@@ -347,6 +369,11 @@ These have Git-specific knowledge and shouldn't move.
    - CommitCommand creates commits with trees
    - LogCommand displays commit history
    - Both fully implemented
+
+4. ✅ **ResetCommand** (cli layer)
+   - Resets HEAD to previous commits using HEAD~n syntax
+   - Clears index leaving changes unindexed
+   - Traverses parent commit chain
 
 ### Planned Additions
 
