@@ -60,6 +60,27 @@ public:
     
     /// Get .gitter directory path
     std::filesystem::path gitterDir() const { return rootPath / ".gitter"; }
+    
+    /**
+     * @brief Resolve HEAD to commit hash
+     * @param root Repository root path
+     * @return Pair of (commitHash, branchRef), or error
+     * 
+     * Parses `.gitter/HEAD` and resolves to the actual commit hash.
+     * Returns both the hash and the branch reference path (if attached).
+     * Empty hash indicates no commits yet.
+     */
+    static Expected<std::pair<std::string, std::string>> resolveHEAD(const std::filesystem::path& root);
+    
+    /**
+     * @brief Update HEAD to point to a commit
+     * @param root Repository root path
+     * @param commitHash Commit hash to set
+     * @return Success or error
+     * 
+     * Writes the commit hash to the current branch reference file.
+     */
+    static Expected<void> updateHEAD(const std::filesystem::path& root, const std::string& commitHash);
 
 private:
     Repository() = default;

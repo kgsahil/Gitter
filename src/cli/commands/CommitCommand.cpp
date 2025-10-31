@@ -151,25 +151,9 @@ Expected<void> CommitCommand::execute(const AppContext&, const std::vector<std::
     
     // Read parent commit (current HEAD)
     std::string parentHash;
-    std::filesystem::path headPath = root / ".gitter" / "HEAD";
-    if (std::filesystem::exists(headPath)) {
-        std::ifstream headFile(headPath);
-        if (headFile) {
-            std::string headContent;
-            std::getline(headFile, headContent);
-            
-            // HEAD format: "ref: refs/heads/main"
-            if (headContent.rfind("ref: ", 0) == 0) {
-                std::string refPath = headContent.substr(5);
-                std::filesystem::path refFile = root / ".gitter" / refPath;
-                if (std::filesystem::exists(refFile)) {
-                    std::ifstream rf(refFile);
-                    if (rf) {
-                        std::getline(rf, parentHash);
-                    }
-                }
-            }
-        }
+    auto headRes = Repository::resolveHEAD(root);
+    if (headRes) {
+        parentHash = headRes.value().first;
     }
     
     // Create tree from index
@@ -228,35 +212,9 @@ Expected<void> CommitCommand::execute(const AppContext&, const std::vector<std::
     }
     
     // Update HEAD (write to current branch ref)
-    std::ifstream headFileRead(headPath);
-    if (!headFileRead) {
-        return Error{ErrorCode::IoError, "Failed to read HEAD file"};
-    }
-    std::string headContent;
-    std::getline(headFileRead, headContent);
-    headFileRead.close();
-    
-    if (headContent.rfind("ref: ", 0) == 0) {
-        std::string refPath = headContent.substr(5);
-        std::filesystem::path refFile = root / ".gitter" / refPath;
-        
-        // Create parent directories if needed
-        std::error_code ec;
-        std::filesystem::create_directories(refFile.parent_path(), ec);
-        if (ec) {
-            return Error{ErrorCode::IoError, "Failed to create ref directory: " + ec.message()};
-        }
-        
-        // Write commit hash to branch ref
-        std::ofstream rf(refFile, std::ios::binary);
-        if (!rf) {
-            return Error{ErrorCode::IoError, "Failed to write ref file"};
-        }
-        rf << commitHash << "\n";
-        rf.flush();
-        if (!rf || !rf.good()) {
-            return Error{ErrorCode::IoError, "Failed to write commit hash to ref"};
-        }
+    auto updateRes = Repository::updateHEAD(root, commitHash);
+    if (!updateRes) {
+        return Error{updateRes.error().code, updateRes.error().message};
     }
     
     // No output on successful commit (Git-like behavior)

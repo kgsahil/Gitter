@@ -62,44 +62,13 @@ Expected<void> ResetCommand::execute(const AppContext&, const std::vector<std::s
         return Error{ErrorCode::InvalidArgs, "reset: only HEAD and HEAD~n are supported"};
     }
     
-    // Read current HEAD to get starting commit
-    std::filesystem::path headPath = root / ".gitter" / "HEAD";
-    if (!std::filesystem::exists(headPath)) {
-        return Error{ErrorCode::InvalidArgs, "reset: no commits yet"};
-    }
-    
-    std::ifstream headFile(headPath);
-    if (!headFile) {
-        return Error{ErrorCode::IoError, "Failed to read HEAD file"};
-    }
-    std::string headContent;
-    std::getline(headFile, headContent);
-    headFile.close();
-    
     // Resolve HEAD to commit hash
-    std::string currentHash;
-    std::string branchRef;
-    if (headContent.rfind("ref: ", 0) == 0) {
-        // HEAD points to a branch
-        branchRef = headContent.substr(5);
-        std::filesystem::path refFile = root / ".gitter" / branchRef;
-        
-        if (!std::filesystem::exists(refFile)) {
-            // No commits yet (ref file doesn't exist)
-            return Error{ErrorCode::InvalidArgs, "reset: no commits yet"};
-        }
-        
-        std::ifstream rf(refFile);
-        if (!rf) {
-            return Error{ErrorCode::IoError, "Failed to read branch reference"};
-        }
-        std::getline(rf, currentHash);
-        rf.close();
-    } else {
-        // Detached HEAD (direct commit hash)
-        currentHash = headContent;
+    auto headRes = Repository::resolveHEAD(root);
+    if (!headRes) {
+        return Error{headRes.error().code, "reset: " + headRes.error().message};
     }
     
+    auto [currentHash, branchRef] = headRes.value();
     if (currentHash.empty()) {
         return Error{ErrorCode::InvalidArgs, "reset: no commits yet"};
     }
@@ -134,17 +103,9 @@ Expected<void> ResetCommand::execute(const AppContext&, const std::vector<std::s
     }
     
     // Update branch reference (HEAD) to target commit
-    if (!branchRef.empty()) {
-        std::filesystem::path refFile = root / ".gitter" / branchRef;
-        std::ofstream rf(refFile, std::ios::binary);
-        if (!rf) {
-            return Error{ErrorCode::IoError, "reset: failed to write branch reference"};
-        }
-        rf << targetHash << "\n";
-        rf.flush();
-        if (!rf || !rf.good()) {
-            return Error{ErrorCode::IoError, "reset: failed to write branch reference"};
-        }
+    auto updateRes = Repository::updateHEAD(root, targetHash);
+    if (!updateRes) {
+        return Error{updateRes.error().code, "reset: " + updateRes.error().message};
     }
     
     // Update index to match target commit tree

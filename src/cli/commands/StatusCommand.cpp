@@ -127,32 +127,13 @@ Expected<void> StatusCommand::execute(const AppContext&, const std::vector<std::
     ObjectStore store(root);
     
     // Check if HEAD commit exists
-    fs::path headPath = root / ".gitter" / "HEAD";
     bool hasCommits = false;
     std::string currentCommitHash;
     
-    if (fs::exists(headPath)) {
-        std::ifstream headFile(headPath);
-        if (headFile) {
-            std::string headContent;
-            std::getline(headFile, headContent);
-            headFile.close();
-            
-            if (headContent.rfind("ref: ", 0) == 0) {
-                std::string refPath = headContent.substr(5);
-                fs::path refFile = root / ".gitter" / refPath;
-                if (fs::exists(refFile)) {
-                    std::ifstream rf(refFile);
-                    if (rf) {
-                        std::getline(rf, currentCommitHash);
-                        hasCommits = !currentCommitHash.empty();
-                    }
-                }
-            } else {
-                currentCommitHash = headContent;
-                hasCommits = !currentCommitHash.empty();
-            }
-        }
+    auto headRes = Repository::resolveHEAD(root);
+    if (headRes) {
+        currentCommitHash = headRes.value().first;
+        hasCommits = !currentCommitHash.empty();
     }
     
     // Build set of all tracked paths (index)

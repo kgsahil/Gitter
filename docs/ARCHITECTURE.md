@@ -67,6 +67,8 @@ src/
   - Singleton pattern for global state
   - Initializes `.gitter/` structure
   - Discovers repo root by walking up directories
+  - **HEAD management**: `resolveHEAD()` and `updateHEAD()` static helpers
+  - Eliminates code duplication across commands
   
 - **ObjectStore** - Content-addressable object storage
   - Implements Git object format: `"<type> <size>\0<content>"`

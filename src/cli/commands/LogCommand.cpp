@@ -35,51 +35,18 @@ Expected<void> LogCommand::execute(const AppContext&, const std::vector<std::str
     if (!rootRes) return Error{rootRes.error().code, rootRes.error().message};
     std::filesystem::path root = rootRes.value();
     
-    // Read current HEAD to get starting commit
-    std::filesystem::path headPath = root / ".gitter" / "HEAD";
-    if (!std::filesystem::exists(headPath)) {
-        std::cout << "`your current branch does not have any commits yet`\n";
-        return {};
-    }
-    
-    std::ifstream headFile(headPath);
-    if (!headFile) {
-        std::cout << "`your current branch does not have any commits yet`\n";
-        return {};
-    }
-    std::string headContent;
-    std::getline(headFile, headContent);
-    if (headFile.bad()) {
-        return Error{ErrorCode::IoError, "Failed to read HEAD file"};
-    }
-    headFile.close();
-    
     // Resolve HEAD to commit hash
-    std::string currentHash;
-    if (headContent.rfind("ref: ", 0) == 0) {
-        // HEAD points to a branch
-        std::string refPath = headContent.substr(5);
-        std::filesystem::path refFile = root / ".gitter" / refPath;
-        
-        if (!std::filesystem::exists(refFile)) {
+    auto headRes = Repository::resolveHEAD(root);
+    if (!headRes) {
+        // If HEAD file doesn't exist, no commits yet
+        if (headRes.error().code == ErrorCode::InvalidArgs) {
             std::cout << "`your current branch does not have any commits yet`\n";
             return {};
         }
-        
-        std::ifstream rf(refFile);
-        if (!rf) {
-            std::cout << "`your current branch does not have any commits yet`\n";
-            return {};
-        }
-        std::getline(rf, currentHash);
-        if (rf.bad()) {
-            return Error{ErrorCode::IoError, "Failed to read ref file"};
-        }
-    } else {
-        // Detached HEAD (direct commit hash)
-        currentHash = headContent;
+        return Error{headRes.error().code, headRes.error().message};
     }
     
+    auto [currentHash, branchRef] = headRes.value();
     if (currentHash.empty()) {
         std::cout << "`your current branch does not have any commits yet`\n";
         return {};

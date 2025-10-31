@@ -4,6 +4,36 @@ All notable changes to the Gitter project will be documented in this file.
 
 ## [Unreleased]
 
+### Refactored - HEAD Management Centralization (2025-01-02)
+
+#### Code Duplication Elimination
+- **Repository HEAD Helpers**: Added `resolveHEAD()` and `updateHEAD()` static methods
+  - Centralized HEAD resolution logic used across multiple commands
+  - Eliminated ~150+ lines of duplicated code
+  - Improved consistency in error handling and behavior
+
+#### Command Simplification
+- **Refactored Commands**: Updated LogCommand, ResetCommand, CommitCommand, StatusCommand
+  - Replaced inline HEAD resolution with `Repository::resolveHEAD()` calls
+  - Replaced inline HEAD updates with `Repository::updateHEAD()` calls
+  - Reduced each command's HEAD logic from 30-50 lines to 10-15 lines
+  - Improved code readability and maintainability
+
+#### Benefits
+- **Better Maintainability**: Bug fixes and improvements only need to be made once
+- **Consistent Behavior**: All commands handle HEAD resolution identically
+- **Easier Testing**: Helper methods can be unit tested independently
+- **Foundation for Future Features**: Ready for symbolic refs, reflog, etc.
+
+#### Files Modified
+- `src/core/Repository.hpp/cpp` - Added HEAD management methods
+- `src/cli/commands/LogCommand.cpp` - Simplified HEAD resolution
+- `src/cli/commands/ResetCommand.cpp` - Simplified HEAD resolution/update
+- `src/cli/commands/CommitCommand.cpp` - Simplified HEAD resolution/update
+- `src/cli/commands/StatusCommand.cpp` - Simplified HEAD resolution
+- `docs/ARCHITECTURE.md` - Documented new methods
+- `docs/REFACTORING_HEAD_MANAGEMENT.md` (new) - Detailed refactoring documentation
+
 ### Added - Reset Command for Undoing Commits (2025-11-02)
 
 #### Reset Implementation

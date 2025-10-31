@@ -52,6 +52,97 @@ Expected<fs::path> Repository::discoverRoot(const fs::path& start) const {
     }
 }
 
+Expected<std::pair<std::string, std::string>> Repository::resolveHEAD(const fs::path& root) {
+    fs::path headPath = root / ".gitter" / "HEAD";
+    if (!fs::exists(headPath)) {
+        return Error{ErrorCode::InvalidArgs, "No HEAD file"};
+    }
+    
+    std::ifstream headFile(headPath);
+    if (!headFile) {
+        return Error{ErrorCode::IoError, "Failed to read HEAD file"};
+    }
+    std::string headContent;
+    std::getline(headFile, headContent);
+    headFile.close();
+    
+    std::string currentHash;
+    std::string branchRef;
+    if (headContent.rfind("ref: ", 0) == 0) {
+        // HEAD points to a branch
+        branchRef = headContent.substr(5);
+        fs::path refFile = root / ".gitter" / branchRef;
+        
+        if (!fs::exists(refFile)) {
+            // No commits yet (ref file doesn't exist)
+            return std::make_pair(std::string(), branchRef);
+        }
+        
+        std::ifstream rf(refFile);
+        if (!rf) {
+            return Error{ErrorCode::IoError, "Failed to read branch reference"};
+        }
+        std::getline(rf, currentHash);
+        rf.close();
+    } else {
+        // Detached HEAD (direct commit hash)
+        currentHash = headContent;
+    }
+    
+    return std::make_pair(currentHash, branchRef);
+}
+
+Expected<void> Repository::updateHEAD(const fs::path& root, const std::string& commitHash) {
+    fs::path headPath = root / ".gitter" / "HEAD";
+    if (!fs::exists(headPath)) {
+        return Error{ErrorCode::InvalidArgs, "No HEAD file"};
+    }
+    
+    std::ifstream headFileRead(headPath);
+    if (!headFileRead) {
+        return Error{ErrorCode::IoError, "Failed to read HEAD file"};
+    }
+    std::string headContent;
+    std::getline(headFileRead, headContent);
+    headFileRead.close();
+    
+    if (headContent.rfind("ref: ", 0) == 0) {
+        std::string refPath = headContent.substr(5);
+        fs::path refFile = root / ".gitter" / refPath;
+        
+        // Create parent directories if needed
+        std::error_code ec;
+        fs::create_directories(refFile.parent_path(), ec);
+        if (ec) {
+            return Error{ErrorCode::IoError, "Failed to create ref directory: " + ec.message()};
+        }
+        
+        // Write commit hash to branch ref
+        std::ofstream rf(refFile, std::ios::binary);
+        if (!rf) {
+            return Error{ErrorCode::IoError, "Failed to write ref file"};
+        }
+        rf << commitHash << "\n";
+        rf.flush();
+        if (!rf || !rf.good()) {
+            return Error{ErrorCode::IoError, "Failed to write commit hash to ref"};
+        }
+    } else {
+        // Detached HEAD - update HEAD directly
+        std::ofstream headFileWrite(headPath, std::ios::binary);
+        if (!headFileWrite) {
+            return Error{ErrorCode::IoError, "Failed to write HEAD file"};
+        }
+        headFileWrite << commitHash << "\n";
+        headFileWrite.flush();
+        if (!headFileWrite || !headFileWrite.good()) {
+            return Error{ErrorCode::IoError, "Failed to write HEAD"};
+        }
+    }
+    
+    return {};
+}
+
 }
 
  
