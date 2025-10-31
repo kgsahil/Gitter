@@ -244,15 +244,18 @@ gitter cat-file -s abc123...
 
 1. **Parse Arguments**: Extract `-m <message>` and optional `-a` flag
 2. **Load Index**: Read all staged files
-3. **Build Tree**: `TreeBuilder` converts flat index into hierarchical tree objects
+3. **Auto-Stage (if `-a` flag)**: For modified tracked files, re-hash and update index
+4. **Build Tree**: `TreeBuilder` converts flat index into hierarchical tree objects
    - Groups files by directory recursively
    - Creates tree objects: `"tree <size>\0<mode> <name>\0<hash>..."`
    - Stores in `.gitter/objects/<aa>/<bbb...>`
-4. **Create Commit**: Build commit object with tree, parent, author, committer, message
+5. **Check for Duplicates**: Compare tree hash with parent commit's tree hash
+   - If identical, return "nothing to commit, working tree clean"
+6. **Create Commit**: Build commit object with tree, parent, author, committer, message
    - Format: `"commit <size>\0tree...\nparent...\nauthor...\n\n<message>"`
    - Compress with zlib and store
-5. **Update Branch**: Write commit hash to `.gitter/refs/heads/main`
-6. **Print Success**: Display commit hash and message
+7. **Update Branch**: Write commit hash to `.gitter/refs/heads/main`
+8. **Silent Success**: No output (Git-like behavior)
 
 ### How Log Works
 
@@ -383,6 +386,9 @@ gitter status
 - **Commit history with parent references**
 - **Log display (last 10 commits, newest first)**
 - **Commit object parsing and traversal**
+- **Auto-staging with `-a` and `-am` flags**
+- **Duplicate commit prevention**
+- **Silent commit output (Git-like)**
 - Status detection (staged/modified/untracked) with Git optimization
 - Unstaging with patterns
 - Git-compliant blob/tree/commit object storage

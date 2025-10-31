@@ -187,6 +187,7 @@ TEST_F(StatusCommandTest, StatusStagedAndModified) {
     addCmd.execute(ctx, {"file.txt"});
     
     // Modify again (after staging)
+    std::this_thread::sleep_for(std::chrono::milliseconds(100)); // Ensure mtime differs
     createFile(tempDir, "file.txt", "content3");
     
     clearOutput();
@@ -280,6 +281,9 @@ TEST_F(StatusCommandTest, StatusAfterCommitClearsStaged) {
     createFile(tempDir, "file.txt", "content");
     addCmd.execute(ctx, {"file.txt"});
     commitCmd.execute(ctx, {"-m", "Commit"});
+    
+    // Ensure mtime differs (filesystem granularity issue)
+    std::this_thread::sleep_for(std::chrono::milliseconds(100));
     
     clearOutput();
     statusCmd.execute(ctx, {});

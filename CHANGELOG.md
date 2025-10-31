@@ -4,6 +4,31 @@ All notable changes to the Gitter project will be documented in this file.
 
 ## [Unreleased]
 
+### Changed - Commit Command Auto-Staging & Behavior (2025-11-02)
+
+#### Auto-Staging Implementation
+- **Full `-a` and `-am` Support**: Auto-stage all modified tracked files before committing
+  - Iterates through all files in the index
+  - Performs fast size/mtime check
+  - Re-hashes files if size or mtime differs
+  - Updates index with new metadata (hash, size, mtime, mode, ctime)
+  - Saves and reloads index to ensure changes are reflected
+
+#### Duplicate Commit Prevention
+- **Tree Comparison**: Compares index tree hash with parent commit's tree hash
+  - Prevents creating duplicate commits when working tree is unchanged
+  - Returns error "nothing to commit, working tree clean" if trees match
+  - Matches Git's behavior exactly
+
+#### Silent Commit Output
+- **No Output on Success**: `gitter commit` now produces no output on successful commit
+  - Matches Git's default behavior
+  - Removed `[commit <hash>] <message>` output
+  - Errors still display appropriate messages
+
+#### Files Modified
+- `src/cli/commands/CommitCommand.cpp` - Auto-staging, tree comparison, silent output
+
 ### Added - Integration Tests for Git-like Workflows (2025-11-02)
 
 #### Comprehensive Test Coverage

@@ -115,8 +115,6 @@ Expected<void> LogCommand::execute(const AppContext&, const std::vector<std::str
                 std::cout << "    " << line << "\n";
             }
             
-            std::cout << "\n";
-            
             // Move to parent commit
             if (!commit.parentHashes.empty()) {
                 currentHash = commit.parentHashes[0];  // Follow first parent (ignore merges for now)

@@ -204,28 +204,36 @@ StatusCommand:
 
 ### Commit Command Flow
 ```
-User: gitter commit -m "Message"
+User: gitter commit -m "Message" [-a]
   ↓
 CommitCommand:
   1. Parse arguments (-m message, optional -a flag)
   2. Repository.discoverRoot() finds .gitter/
   3. Index.load() reads staged files
-  4. Check if index is empty (error if so)
-  5. TreeBuilder.buildFromIndex():
+  4. If -a flag: auto-stage modified tracked files
+     - Iterate through index entries
+     - For each file: fast size/mtime check
+     - If modified: re-hash and update index entry
+     - Save and reload index
+  5. Check if index is empty (error if so)
+  6. Read HEAD to get parent commit hash
+  7. TreeBuilder.buildFromIndex():
      - Groups files by directory
      - Recursively builds trees from leaves to root
      - Creates tree objects: "tree <size>\0<mode> <name>\0<hash>..."
      - ObjectStore.writeTree() stores each tree
-  6. Read HEAD to get parent commit hash
-  7. Build commit object:
+  8. Check for duplicates:
+     - Compare tree hash with parent commit's tree hash
+     - If identical: return "nothing to commit, working tree clean"
+  9. Build commit object:
      - Format: "commit <size>\0tree <hash>\nparent <hash>\n..."
      - Include author/committer (from env vars or defaults)
      - Unix timestamp and timezone
      - Commit message
-  8. ObjectStore.writeCommit() stores commit
-  9. Update branch reference (.gitter/refs/heads/main)
+ 10. ObjectStore.writeCommit() stores commit
+ 11. Update branch reference (.gitter/refs/heads/main)
   ↓
-Success/Error returned through Expected<void>
+Silent success (no output, Git-like)
 ```
 
 ### Log Command Flow

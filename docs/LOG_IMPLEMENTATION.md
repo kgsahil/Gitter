@@ -260,7 +260,7 @@ gitter log
 
 ```bash
 gitter log
-# Output: No commits yet
+# Output: `your current branch does not have any commits yet`
 ```
 
 ### Single Commit
@@ -391,14 +391,14 @@ If commit object is malformed:
 
 ```bash
 gitter log
-# Output: No commits yet
+# Output: `your current branch does not have any commits yet`
 ```
 
 ### HEAD Points to Non-Existent Branch
 
 ```bash
 gitter log
-# Output: No commits yet
+# Output: `your current branch does not have any commits yet`
 ```
 
 ## Future Enhancements

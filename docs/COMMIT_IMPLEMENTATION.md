@@ -136,7 +136,13 @@ entries = {
   "README.md":    { hash: "def456...", mode: 100644, ... }
 }
 
-// 3. Build tree
+// 3. Get parent commit (before building tree to detect duplicates)
+Read .gitter/HEAD → "ref: refs/heads/main"
+Read .gitter/refs/heads/main → "parent_hash"
+  ↓
+parentHash = "def789..." (or empty if first commit)
+
+// 4. Build tree
 TreeBuilder::buildFromIndex(index, store)
   ↓
   - Build tree for src/: tree_hash_src
@@ -144,13 +150,12 @@ TreeBuilder::buildFromIndex(index, store)
   ↓
 treeHash = "789abc..."
 
-// 4. Get parent commit
-Read .gitter/HEAD → "ref: refs/heads/main"
-Read .gitter/refs/heads/main → "parent_hash"
-  ↓
-parentHash = "def789..." (or empty if first commit)
+// 5. Check if tree hash matches parent (duplicate detection)
+if (parentHash exists && treeHash == parentCommit.treeHash) {
+  return Error: "nothing to commit, working tree clean"
+}
 
-// 5. Build commit content
+// 6. Build commit content
 tree 789abc...
 parent def789...
 author Gitter User <user@example.com> 1698765432 +0000
@@ -158,7 +163,7 @@ committer Gitter User <user@example.com> 1698765432 +0000
 
 Fix bug
 
-// 6. Write commit object
+// 7. Write commit object
 store.writeCommit(content)
   ↓
   - Hash: commit <size>\0<content>
@@ -167,13 +172,12 @@ store.writeCommit(content)
   ↓
 commitHash = "123def..."
 
-// 7. Update branch reference
+// 8. Update branch reference
 Write commitHash to .gitter/refs/heads/main
   ↓
 main now points to new commit
 
-// 8. Print success
-[commit 123def7] Fix bug
+// 9. No output (Git-like behavior)
 ```
 
 ## File Mode Encoding
@@ -209,7 +213,14 @@ gitter commit -m "Add feature"
 gitter commit -a -m "Update docs"
 ```
 
-**Note:** Currently prints warning (not fully implemented).
+**Behavior:**
+1. Iterates through all tracked files in the index
+2. Performs fast check: compares file size and modification time
+3. If size or mtime differs, re-computes file hash
+4. Updates index entries for modified files
+5. Then proceeds with normal commit flow
+
+**Note:** If no files are modified, commit will fail with "nothing to commit, working tree clean"
 
 ### `-am <message>`
 **Shorthand** for `-a -m`.
@@ -355,6 +366,29 @@ gitter commit -m "Test"
 
 **Solution:** Run `gitter init` or `cd` to repository
 
+### Duplicate Commit Prevention
+
+```bash
+gitter commit -m "Same tree"
+# Error: nothing to commit, working tree clean
+```
+
+**Behavior:**
+- After building tree from index, compares tree hash with parent commit's tree hash
+- If trees match, no commit is created (prevents duplicate empty commits)
+- Matches Git's behavior exactly
+
+**Use Case:**
+```bash
+# First commit
+gitter add file.txt
+gitter commit -m "First"
+
+# Try to commit again without changes
+gitter commit -m "Again"
+# Fails: nothing to commit, working tree clean
+```
+
 ## Technical Details
 
 ### SHA-1 vs SHA-256
@@ -405,13 +439,6 @@ Path: .gitter/objects/12/3abc...
 
 ## Future Enhancements
 
-### Implement -a Flag (Auto-Stage)
-
-Currently prints warning. Should:
-1. Compare working tree with index
-2. Auto-stage all modified tracked files
-3. Then create commit
-
 ### Multiple -m Flags
 
 Git supports multiple `-m` flags:
@@ -456,6 +483,9 @@ The commit implementation:
 ✅ **Updates branch references** - maintains commit chain  
 ✅ **Supports parent commits** - builds commit history  
 ✅ **Handles empty repositories** - root-commit without parent  
+✅ **Auto-stages with -a flag** - tracks modified files automatically  
+✅ **Prevents duplicate commits** - compares tree hashes before creating  
+✅ **Silent operation** - no output on success (Git-like)  
 
 The implementation is fully functional and Git-compatible! 🎉
 
