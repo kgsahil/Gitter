@@ -117,9 +117,7 @@ static void showCommit(ObjectStore& store, const std::string& hash) {
                   << commit.committerTimestamp << " " << commit.committerTimezone << "\n";
         std::cout << "\n";
         std::cout << commit.message;
-        if (!commit.message.empty() && commit.message.back() != '\n') {
-            std::cout << "\n";
-        }
+        // commit.message already has trailing newline
     } catch (const std::exception& e) {
         std::cerr << "Error reading commit: " << e.what() << "\n";
     }

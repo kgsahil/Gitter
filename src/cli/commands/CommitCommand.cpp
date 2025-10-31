@@ -11,10 +11,13 @@
 #include "core/Index.hpp"
 #include "core/ObjectStore.hpp"
 #include "core/TreeBuilder.hpp"
+#include "core/CommitObject.hpp"
 // Include concrete hasher to allow ObjectStore destructor instantiation
 #include "util/Sha1Hasher.hpp"
 
 namespace gitter {
+
+namespace fs = std::filesystem;
 
 /**
  * @brief Execute 'gitter commit' command
@@ -62,29 +65,88 @@ Expected<void> CommitCommand::execute(const AppContext&, const std::vector<std::
         return Error{ErrorCode::IoError, "Failed to read index"};
     }
     
+    // Create ObjectStore instance (used for auto-staging and commit creation)
+    ObjectStore store(root);
+    
     // If -a flag, auto-stage all modified tracked files
     if (autoStage) {
-        // TODO: Implement auto-staging of modified files
-        // For now, just use what's in the index
-        std::cout << "warning: -a flag not fully implemented yet\n";
+        std::error_code ec;
+        
+        // Iterate through all tracked files in the index
+        auto entries = index.entriesMut();
+        for (auto& kv : entries) {
+            const std::string& path = kv.first;
+            fs::path p = root / path;
+            
+            // Skip if file doesn't exist (deleted files)
+            if (!fs::exists(p, ec)) {
+                continue;
+            }
+            
+            // Check if file is modified using fast size/mtime check
+            uint64_t sizeBytes = static_cast<uint64_t>(fs::file_size(p, ec));
+            if (ec) sizeBytes = 0;
+            
+            uint64_t mtimeNs = 0;
+            auto ft = fs::last_write_time(p, ec);
+            if (!ec) {
+                auto now_sys = std::chrono::system_clock::now();
+                auto now_file = fs::file_time_type::clock::now();
+                auto adj = ft - now_file + now_sys;
+                mtimeNs = static_cast<uint64_t>(std::chrono::duration_cast<std::chrono::nanoseconds>(adj.time_since_epoch()).count());
+            }
+            
+            bool sizeMatches = sizeBytes == kv.second.sizeBytes;
+            bool mtimeMatches = mtimeNs == kv.second.mtimeNs;
+            
+            // If file is modified, re-stage it
+            if (!sizeMatches || !mtimeMatches) {
+                try {
+                    std::string hash = store.hashFileContent(p);
+                    if (hash != kv.second.hashHex) {
+                        // Get file permissions (Git tracks mode)
+                        uint32_t mode = 0;
+                        auto status = fs::status(p, ec);
+                        if (!ec) {
+                            auto perms = status.permissions();
+                            // Git uses octal mode: 0100644 (regular file) or 0100755 (executable)
+                            if ((perms & fs::perms::owner_exec) != fs::perms::none ||
+                                (perms & fs::perms::group_exec) != fs::perms::none ||
+                                (perms & fs::perms::others_exec) != fs::perms::none) {
+                                mode = 0100755; // Executable
+                            } else {
+                                mode = 0100644; // Regular file
+                            }
+                        }
+                        
+                        // Update index entry with new hash and metadata
+                        IndexEntry newEntry = kv.second;
+                        newEntry.hashHex = hash;
+                        newEntry.sizeBytes = sizeBytes;
+                        newEntry.mtimeNs = mtimeNs;
+                        newEntry.mode = mode;
+                        newEntry.ctimeNs = mtimeNs;
+                        
+                        index.addOrUpdate(newEntry);
+                    }
+                } catch (const std::exception&) {
+                    // Skip files we can't hash
+                }
+            }
+        }
+        
+        // Save updated index
+        index.save(root);
+        
+        // Reload index to get any auto-staged changes
+        if (!index.load(root)) {
+            return Error{ErrorCode::IoError, "Failed to read index"};
+        }
     }
     
     // Check if index is empty
     if (index.entries().empty()) {
         return Error{ErrorCode::InvalidArgs, "nothing to commit (index is empty)"};
-    }
-    
-    // Create tree from index
-    ObjectStore store(root);
-    std::string treeHash;
-    try {
-        treeHash = TreeBuilder::buildFromIndex(index, store);
-    } catch (const std::exception& e) {
-        return Error{ErrorCode::IoError, std::string("Failed to create tree object: ") + e.what()};
-    }
-    
-    if (treeHash.empty()) {
-        return Error{ErrorCode::IoError, "Failed to create tree object: empty tree"};
     }
     
     // Read parent commit (current HEAD)
@@ -107,6 +169,30 @@ Expected<void> CommitCommand::execute(const AppContext&, const std::vector<std::
                     }
                 }
             }
+        }
+    }
+    
+    // Create tree from index
+    std::string treeHash;
+    try {
+        treeHash = TreeBuilder::buildFromIndex(index, store);
+    } catch (const std::exception& e) {
+        return Error{ErrorCode::IoError, std::string("Failed to create tree object: ") + e.what()};
+    }
+    
+    if (treeHash.empty()) {
+        return Error{ErrorCode::IoError, "Failed to create tree object: empty tree"};
+    }
+    
+    // Check if tree hash is same as parent (nothing to commit)
+    if (!parentHash.empty()) {
+        try {
+            CommitObject parentCommit = store.readCommit(parentHash);
+            if (treeHash == parentCommit.treeHash) {
+                return Error{ErrorCode::InvalidArgs, "nothing to commit, working tree clean"};
+            }
+        } catch (const std::exception&) {
+            // If we can't read parent, proceed with commit
         }
     }
     
@@ -173,9 +259,7 @@ Expected<void> CommitCommand::execute(const AppContext&, const std::vector<std::
         }
     }
     
-    // Print success message
-    std::cout << "[" << (parentHash.empty() ? "root-commit" : "commit") << " " 
-              << commitHash.substr(0, 7) << "] " << message << "\n";
+    // No output on successful commit (Git-like behavior)
     
     return {};
 }

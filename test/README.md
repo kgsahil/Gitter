@@ -63,23 +63,33 @@ test/
 │   ├── test_index.cpp         # Index tests
 │   ├── test_objectstore.cpp   # ObjectStore tests
 │   └── test_treebuilder.cpp   # TreeBuilder tests
-└── util/                       # Utility tests
-    ├── test_hasher.cpp         # Hasher tests
-    └── test_patternmatcher.cpp # PatternMatcher tests
+├── util/                       # Utility tests
+│   ├── test_hasher.cpp         # Hasher tests
+│   └── test_patternmatcher.cpp # PatternMatcher tests
+└── integration/                # Integration tests
+    └── test_git_workflow.cpp   # Complete workflow tests
 ```
 
 ## Test Coverage
 
-### Command Tests
+### Unit Tests
 
-Each command has comprehensive tests covering:
-
+**Command Tests**: Each command has comprehensive tests covering:
 - **Basic functionality**: Normal usage scenarios
 - **Edge cases**: Empty inputs, non-existent files, etc.
 - **Pattern matching**: Glob patterns, wildcards
 - **Error handling**: Invalid arguments, missing files
 - **Combinations**: Multiple files, mixed patterns
-- **Integration**: Commands working together
+
+**Integration Tests**: Complete Git-like workflows combining multiple commands:
+- `BasicWorkflowInitAddCommitStatusLog`: Full workflow validation
+- `ModifyFileAfterCommit`: File modification and re-commit
+- `StageUnstageRestage`: Add/unstage/re-stage workflow
+- `DeleteTrackedFile`: Handling deleted files
+- `MultipleCommitsChain`: Commit history and ordering
+- `CommitWithoutStaging`: Empty commit handling
+- `PatternMatchingAddRestore`: Glob patterns across commands
+- `AddDirectoryRecursion`: Recursive directory operations
 
 ### Core Component Tests
 

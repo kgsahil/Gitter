@@ -165,10 +165,25 @@ TEST_F(CommitCommandTest, CommitWithAMFlag) {
     // Modify file
     createFile(tempDir, "file.txt", "content2");
     
-    // Commit with -am (should auto-stage, but currently prints warning)
+    // Commit with -am (should auto-stage and commit modified file)
     std::vector<std::string> args{"-am", "Update with -am"};
     auto result = commitCmd.execute(ctx, args);
-    // May or may not succeed depending on -a implementation
+    ASSERT_TRUE(result.has_value()) << result.error().message;
+    
+    // Verify commit was created
+    fs::path refFile = tempDir / ".gitter" / "refs" / "heads" / "main";
+    std::ifstream rf(refFile);
+    std::string commitHash;
+    std::getline(rf, commitHash);
+    rf.close();
+    
+    ObjectStore store(tempDir);
+    auto commit = store.readCommit(commitHash);
+    EXPECT_EQ(commit.message, "Update with -am\n");
+    
+    // Verify modified file is in commit
+    fs::path objPath = store.getObjectPath(commit.treeHash);
+    ASSERT_TRUE(fs::exists(objPath));
 }
 
 // Test: Multiple commits in sequence
@@ -366,6 +381,89 @@ TEST_F(CommitCommandTest, CommitMessageWithSpecialChars) {
     std::getline(rf, commitHash);
     
     auto commit = store.readCommit(commitHash);
-    EXPECT_EQ(commit.message, message);
+    EXPECT_EQ(commit.message, message + "\n");
+}
+
+// Test: Commit with -a flag (auto-stage all modified files)
+TEST_F(CommitCommandTest, CommitWithAutoStageFlag) {
+    AddCommand addCmd;
+    CommitCommand commitCmd;
+    
+    // First commit
+    createFile(tempDir, "file1.txt", "content1");
+    createFile(tempDir, "file2.txt", "content2");
+    addCmd.execute(ctx, {"file1.txt", "file2.txt"});
+    commitCmd.execute(ctx, {"-m", "First"});
+    
+    // Modify both files
+    createFile(tempDir, "file1.txt", "modified content1");
+    createFile(tempDir, "file2.txt", "modified content2");
+    
+    // Commit with -a should auto-stage both modified files
+    std::vector<std::string> args{"-a", "-m", "Update with -a"};
+    auto result = commitCmd.execute(ctx, args);
+    ASSERT_TRUE(result.has_value()) << result.error().message;
+    
+    // Verify commit was created
+    fs::path refFile = tempDir / ".gitter" / "refs" / "heads" / "main";
+    std::ifstream rf(refFile);
+    std::string commitHash;
+    std::getline(rf, commitHash);
+    rf.close();
+    
+    ObjectStore store(tempDir);
+    auto commit = store.readCommit(commitHash);
+    EXPECT_EQ(commit.message, "Update with -a\n");
+}
+
+// Test: Commit with -am flag on multiple files
+TEST_F(CommitCommandTest, CommitWithAMFlagMultipleFiles) {
+    AddCommand addCmd;
+    CommitCommand commitCmd;
+    
+    // First commit with 3 files
+    createFile(tempDir, "file1.txt", "content1");
+    createFile(tempDir, "file2.txt", "content2");
+    createFile(tempDir, "file3.txt", "content3");
+    addCmd.execute(ctx, {"file1.txt", "file2.txt", "file3.txt"});
+    commitCmd.execute(ctx, {"-m", "First"});
+    
+    // Modify 2 files only
+    createFile(tempDir, "file1.txt", "modified1");
+    createFile(tempDir, "file3.txt", "modified3");
+    
+    // Commit with -am should auto-stage only modified files
+    std::vector<std::string> args{"-am", "Update modified files"};
+    auto result = commitCmd.execute(ctx, args);
+    ASSERT_TRUE(result.has_value()) << result.error().message;
+    
+    // Verify commit was created
+    fs::path refFile = tempDir / ".gitter" / "refs" / "heads" / "main";
+    std::ifstream rf(refFile);
+    std::string commitHash;
+    std::getline(rf, commitHash);
+    rf.close();
+    
+    ObjectStore store(tempDir);
+    auto commit = store.readCommit(commitHash);
+    EXPECT_EQ(commit.message, "Update modified files\n");
+}
+
+// Test: Commit with -a on empty working tree (should fail)
+TEST_F(CommitCommandTest, CommitWithANoChanges) {
+    AddCommand addCmd;
+    CommitCommand commitCmd;
+    
+    // First commit
+    createFile(tempDir, "file.txt", "content");
+    addCmd.execute(ctx, {"file.txt"});
+    commitCmd.execute(ctx, {"-m", "First"});
+    
+    // Don't modify anything
+    // Commit with -a should fail (nothing to commit)
+    std::vector<std::string> args{"-a", "-m", "No changes"};
+    auto result = commitCmd.execute(ctx, args);
+    EXPECT_FALSE(result.has_value());
+    EXPECT_TRUE(result.error().message.find("nothing to commit") != std::string::npos);
 }
 

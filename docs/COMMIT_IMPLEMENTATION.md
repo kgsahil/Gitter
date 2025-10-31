@@ -249,7 +249,7 @@ gitter init
 echo "hello" > file.txt
 gitter add file.txt
 gitter commit -m "Initial commit"
-# Output: [root-commit 123abc7] Initial commit
+# No output (Git-like behavior)
 ```
 
 **Creates:**
@@ -264,7 +264,7 @@ gitter commit -m "Initial commit"
 echo "world" >> file.txt
 gitter add file.txt
 gitter commit -m "Add world"
-# Output: [commit 456def7] Add world
+# No output (Git-like behavior)
 ```
 
 **Creates:**
@@ -281,7 +281,7 @@ echo "int main() {}" > src/main.cpp
 echo "void log() {}" > src/util/log.cpp
 gitter add .
 gitter commit -m "Add C++ files"
-# Output: [commit 789ghi7] Add C++ files
+# No output (Git-like behavior)
 ```
 
 **Creates:**
@@ -363,8 +363,8 @@ Current implementation uses SHA-1 by default (Git standard).
 
 **SHA-1 commit hash:**
 ```
-[commit 1a2b3c4] Message
-        ^^^^^^^ - 7 chars of 40-char SHA-1 hash
+Commit hash: 1a2b3c4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a0b (40 chars)
+                   ^^^^^^^ - 7 chars shown in short format
 ```
 
 To use SHA-256, modify `ObjectStore` constructor:

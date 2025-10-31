@@ -224,7 +224,6 @@ CommitCommand:
      - Commit message
   8. ObjectStore.writeCommit() stores commit
   9. Update branch reference (.gitter/refs/heads/main)
-  10. Print success: "[commit abc1237] Message"
   ↓
 Success/Error returned through Expected<void>
 ```

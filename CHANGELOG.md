@@ -4,6 +4,39 @@ All notable changes to the Gitter project will be documented in this file.
 
 ## [Unreleased]
 
+### Added - Integration Tests for Git-like Workflows (2025-11-02)
+
+#### Comprehensive Test Coverage
+- **Integration Tests** (`test/integration/test_git_workflow.cpp`)
+  - Tests complete Git-like workflows combining multiple commands
+  - Validates Gitter behaves correctly in real-world scenarios
+  - Covers positive and negative test cases
+
+- **Test Scenarios**
+  - **BasicWorkflowInitAddCommitStatusLog**: Complete workflow from init through log
+  - **ModifyFileAfterCommit**: File modification and re-commit workflow
+  - **StageUnstageRestage**: Adding, unstaging, and re-staging files
+  - **DeleteTrackedFile**: Handling deleted tracked files
+  - **MultipleCommitsChain**: Commit chain formation and log ordering
+  - **CommitWithoutStaging**: Negative case for empty commits
+  - **PatternMatchingAddRestore**: Glob pattern usage across commands
+  - **AddDirectoryRecursion**: Recursive directory operations
+
+- **Command Integration**
+  - Validates command interactions (add → status, commit → log, etc.)
+  - Tests status accuracy across workflow stages
+  - Verifies commit history ordering (newest first)
+  - Ensures path normalization consistency across commands
+
+- **Edge Cases**
+  - Handles positive scenarios (happy paths)
+  - Tests negative scenarios (empty commits, missing files)
+  - Validates error states and recovery
+
+#### Files Added
+- `test/integration/test_git_workflow.cpp` - Integration test suite
+- `CMakeLists.txt` - Added integration tests to build system
+
 ### Added - Reliability & Code Quality Improvements (2025-11-02)
 
 #### Error Handling & Reliability

@@ -62,7 +62,7 @@ TEST_F(LogCommandTest, LogEmptyRepository) {
     ASSERT_TRUE(result.has_value()) << result.error().message;
     
     std::string output = getOutput();
-    EXPECT_NE(output.find("No commits yet"), std::string::npos);
+    EXPECT_NE(output.find("`your current branch does not have any commits yet`"), std::string::npos);
 }
 
 // Test: Log with single commit

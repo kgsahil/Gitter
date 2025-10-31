@@ -313,6 +313,34 @@ Levels: `error`, `warn`, `info`, `debug`
 
 ## Testing
 
+The project includes comprehensive unit and integration tests using GoogleTest.
+
+### Running Tests
+
+```bash
+# Build tests (included in default build)
+cmake --build build/linux-debug --target gitter_tests
+
+# Run all tests
+./build/linux-debug/gitter_tests
+
+# Run with verbose output
+./build/linux-debug/gitter_tests --gtest_brief=1
+
+# Or use CTest
+cd build/linux-debug
+ctest --output-on-failure
+```
+
+### Test Coverage
+
+- **Unit Tests**: Individual components (Index, ObjectStore, TreeBuilder, etc.)
+- **Command Tests**: All CLI commands (init, add, commit, status, log, restore)
+- **Integration Tests**: Complete Git-like workflows combining multiple commands
+- **Edge Cases**: Positive and negative scenarios, error handling
+
+### Manual Testing
+
 ```bash
 # Create test repository
 mkdir test && cd test

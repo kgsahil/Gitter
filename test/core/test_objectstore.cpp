@@ -104,7 +104,7 @@ TEST_F(ObjectStoreTest, ReadCommit) {
                                "author Test User <test@example.com> 1698765432 +0000\n"
                                "committer Test User <test@example.com> 1698765432 +0000\n"
                                "\n"
-                               "Test message";
+                               "Test message\n";
     
     std::string hash = store.writeCommit(commitContent);
     
@@ -115,7 +115,7 @@ TEST_F(ObjectStoreTest, ReadCommit) {
     EXPECT_EQ(commit.treeHash, fullTreeHash);
     EXPECT_EQ(commit.authorName, "Test User");
     EXPECT_EQ(commit.authorEmail, "test@example.com");
-    EXPECT_EQ(commit.message, "Test message");
+    EXPECT_EQ(commit.message, "Test message\n");
 }
 
 // Test: Read non-existent object

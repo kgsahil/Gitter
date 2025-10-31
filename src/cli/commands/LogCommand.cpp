@@ -38,13 +38,13 @@ Expected<void> LogCommand::execute(const AppContext&, const std::vector<std::str
     // Read current HEAD to get starting commit
     std::filesystem::path headPath = root / ".gitter" / "HEAD";
     if (!std::filesystem::exists(headPath)) {
-        std::cout << "No commits yet\n";
+        std::cout << "`your current branch does not have any commits yet`\n";
         return {};
     }
     
     std::ifstream headFile(headPath);
     if (!headFile) {
-        std::cout << "No commits yet\n";
+        std::cout << "`your current branch does not have any commits yet`\n";
         return {};
     }
     std::string headContent;
@@ -62,13 +62,13 @@ Expected<void> LogCommand::execute(const AppContext&, const std::vector<std::str
         std::filesystem::path refFile = root / ".gitter" / refPath;
         
         if (!std::filesystem::exists(refFile)) {
-            std::cout << "No commits yet\n";
+            std::cout << "`your current branch does not have any commits yet`\n";
             return {};
         }
         
         std::ifstream rf(refFile);
         if (!rf) {
-            std::cout << "No commits yet\n";
+            std::cout << "`your current branch does not have any commits yet`\n";
             return {};
         }
         std::getline(rf, currentHash);
@@ -81,7 +81,7 @@ Expected<void> LogCommand::execute(const AppContext&, const std::vector<std::str
     }
     
     if (currentHash.empty()) {
-        std::cout << "No commits yet\n";
+        std::cout << "`your current branch does not have any commits yet`\n";
         return {};
     }
     
@@ -132,7 +132,7 @@ Expected<void> LogCommand::execute(const AppContext&, const std::vector<std::str
     }
     
     if (count == 0) {
-        std::cout << "No commits yet\n";
+        std::cout << "`your current branch does not have any commits yet`\n";
     }
     
     return {};

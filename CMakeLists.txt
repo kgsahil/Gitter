@@ -101,6 +101,7 @@ if(GITTER_BUILD_TESTS)
     test/core/test_treebuilder.cpp
     test/util/test_hasher.cpp
     test/util/test_patternmatcher.cpp
+    test/integration/test_git_workflow.cpp
   )
   
   target_link_libraries(gitter_tests PRIVATE

@@ -417,10 +417,7 @@ CommitObject ObjectStore::readCommit(const std::string& hash) {
     
     commit.message = messageBuilder.str();
     
-    // Remove trailing newline from message
-    if (!commit.message.empty() && commit.message.back() == '\n') {
-        commit.message.pop_back();
-    }
+    // Keep trailing newline - Git stores commit messages with trailing newline
     
     return commit;
 }
