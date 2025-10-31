@@ -31,6 +31,7 @@ add_library(gitter_lib
   src/cli/commands/RestoreCommand.cpp
   src/core/ObjectStore.cpp
   src/core/Index.cpp
+  src/core/TreeBuilder.cpp
   src/core/Repository.cpp
 )
 

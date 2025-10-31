@@ -11,6 +11,7 @@ A minimal Git-like CLI tool that mimics core Git functionality, built with C++20
 | `gitter help [command]` | Show help or detailed command help | `gitter help commit` |
 | `gitter init [path]` | Initialize a new repository | `gitter init` or `gitter init myproject/` |
 | `gitter add <pathspec>` | Stage files for commit | `gitter add file.txt`, `gitter add *.cpp`, `gitter add .` |
+| `gitter commit -m <msg>` | Create a commit | `gitter commit -m "Fix bug"`, `gitter commit -am "Quick fix"` |
 | `gitter status` | Show working tree status | `gitter status` |
 | `gitter restore --staged <pathspec>` | Unstage files | `gitter restore --staged file.txt`, `gitter restore --staged *.cpp` |
 
@@ -272,9 +273,12 @@ gitter status
 ### Current State ✅
 - Repository initialization
 - File staging with glob patterns
+- **Commit creation with tree and commit objects**
+- **Hierarchical tree building from index**
+- **Commit history with parent references**
 - Status detection (staged/modified/untracked)
 - Unstaging with patterns
-- Git-compliant blob object storage
+- Git-compliant blob/tree/commit object storage
 - Zlib compression for objects
 - 2-char directory structure (`.gitter/objects/<aa>/<bbb...>`)
 - SHA-1 hashing (Git default) with SHA-256 support
@@ -282,18 +286,19 @@ gitter status
 - File permissions tracking (executable bit)
 
 ### Next Steps 🚧
-- `commit` - Create commits with trees
 - `log` - Display commit history
-- `checkout` - Switch branches
-- Tree object creation and storage
-- Branch management
+- `checkout` - Switch branches and restore working tree
+- Branch management (create, delete, list)
+- Diff output for changes
 - Merge detection (basic)
+- Remote operations (future)
 
 ## Documentation
 
 The code is well-documented with Doxygen-style comments and comprehensive guides:
 
 - **[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)** - Overall project architecture and design patterns
+- **[docs/COMMIT_IMPLEMENTATION.md](docs/COMMIT_IMPLEMENTATION.md)** - Commit creation with trees and objects
 - **[docs/HASHER_ARCHITECTURE.md](docs/HASHER_ARCHITECTURE.md)** - Strategy Pattern for hash algorithms
 - **[docs/SHA1_STRATEGY_PATTERN.md](docs/SHA1_STRATEGY_PATTERN.md)** - Git-compliant object storage details
 - **[docs/REFACTORING_SUMMARY.md](docs/REFACTORING_SUMMARY.md)** - Recent hasher refactoring changes

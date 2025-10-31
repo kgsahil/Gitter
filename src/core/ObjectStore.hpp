@@ -61,6 +61,26 @@ public:
     std::string writeBlob(const std::string& bytes);
     
     /**
+     * @brief Write tree object from raw tree content
+     * @param content Raw tree content (mode name\0hash entries)
+     * @return Hash (hex) of the Git tree object
+     * 
+     * Creates Git tree object: "tree <size>\0<content>"
+     * Compresses with zlib and stores in .gitter/objects/<aa>/<bbbb...>
+     */
+    std::string writeTree(const std::string& content);
+    
+    /**
+     * @brief Write commit object from raw commit content
+     * @param content Raw commit content (tree, parent, author, committer, message)
+     * @return Hash (hex) of the Git commit object
+     * 
+     * Creates Git commit object: "commit <size>\0<content>"
+     * Compresses with zlib and stores in .gitter/objects/<aa>/<bbbb...>
+     */
+    std::string writeCommit(const std::string& content);
+    
+    /**
      * @brief Write blob object from file
      * @param filePath Path to file to hash and store
      * @return Hash (hex) of the Git blob object

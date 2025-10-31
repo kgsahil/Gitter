@@ -145,6 +145,68 @@ std::string ObjectStore::writeBlob(const std::string& content) {
     return hash;
 }
 
+std::string ObjectStore::writeTree(const std::string& content) {
+    // Git object format: "tree <size>\0<content>"
+    std::string header = "tree " + std::to_string(content.size());
+    header += '\0';
+    std::string fullObject = header + content;
+    
+    // Hash the full object
+    hasher->reset();
+    hasher->update(fullObject);
+    std::string hash = IHasher::toHex(hasher->digest());
+    
+    // Get object path with 2-char directory structure
+    fs::path objPath = getObjectPath(hash);
+    
+    // Only write if doesn't exist
+    if (!fs::exists(objPath)) {
+        // Create directory if needed
+        fs::create_directories(objPath.parent_path());
+        
+        // Compress with zlib
+        std::vector<uint8_t> compressed = zlibCompress(fullObject);
+        
+        // Write compressed data
+        std::ofstream out(objPath, std::ios::binary);
+        out.write(reinterpret_cast<const char*>(compressed.data()), 
+                  static_cast<std::streamsize>(compressed.size()));
+    }
+    
+    return hash;
+}
+
+std::string ObjectStore::writeCommit(const std::string& content) {
+    // Git object format: "commit <size>\0<content>"
+    std::string header = "commit " + std::to_string(content.size());
+    header += '\0';
+    std::string fullObject = header + content;
+    
+    // Hash the full object
+    hasher->reset();
+    hasher->update(fullObject);
+    std::string hash = IHasher::toHex(hasher->digest());
+    
+    // Get object path with 2-char directory structure
+    fs::path objPath = getObjectPath(hash);
+    
+    // Only write if doesn't exist
+    if (!fs::exists(objPath)) {
+        // Create directory if needed
+        fs::create_directories(objPath.parent_path());
+        
+        // Compress with zlib
+        std::vector<uint8_t> compressed = zlibCompress(fullObject);
+        
+        // Write compressed data
+        std::ofstream out(objPath, std::ios::binary);
+        out.write(reinterpret_cast<const char*>(compressed.data()), 
+                  static_cast<std::streamsize>(compressed.size()));
+    }
+    
+    return hash;
+}
+
 std::string ObjectStore::writeBlobFromFile(const fs::path& filePath) {
     std::ifstream in(filePath, std::ios::binary);
     std::vector<uint8_t> buf((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
