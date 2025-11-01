@@ -4,6 +4,84 @@ All notable changes to the Gitter project will be documented in this file.
 
 ## [Unreleased]
 
+### Fixed - Checkout Bug: File Preservation on Branch Switch (2025-01-02)
+
+#### Bug Fix
+- **File Preservation**: Files not in current commit's tree are now preserved when switching branches
+- **Comparison Logic**: Changed from comparing old index with new index to comparing current commit tree with target commit tree
+- **Nested Files**: Recursive tree collection now handles nested directory structures correctly
+- **Git Compatibility**: Matches Git's behavior for preserving working tree files across branch switches
+- **Index Preservation**: Index entries are now intelligently merged instead of rebuilt, preserving staged files like Git
+
+#### Implementation Details
+- Added `collectTreeFiles()` helper to recursively collect all files from a tree object
+- Changed file removal logic to use commit tree comparison instead of index comparison
+- Index merging: only removes entries tracked in current commit, preserves new staged files
+- Index merging: only adds entries from target branch if not already in index
+- Matches Git's behavior for staged file preservation across branch switches
+
+#### Testing
+- Added comprehensive checkout integration tests:
+  - `CheckoutPreservesStagedFiles` - Basic staged file preservation
+  - `CheckoutPreservesModifiedStagedFiles` - Modified file staging across branches
+  - `CheckoutPreservesMultipleStagedFiles` - Multiple files across different branches
+  - `CheckoutComplexStagingState` - Complex states (staged, modified, untracked)
+  - `CheckoutNestedDirectoryStaging` - Nested directory preservation
+  - `CheckoutWithDivergentBranches` - Branch isolation verification
+- Total test count: 202 tests (up from 197)
+
+#### Files Modified
+- `src/cli/commands/CheckoutCommand.cpp` - Fixed file preservation logic, added `collectTreeFiles()` helper and intelligent index merging
+- `test/integration/test_git_workflow.cpp` - Added 5 new comprehensive checkout tests
+
+### Fixed - Intermittent Test Failures (2025-01-02)
+
+#### Test Reliability Improvements
+- **Hash Trimming Utility**: Added `readHashFromFile()` to test utils to consistently trim whitespace from hashes
+- **Mtime Granularity**: Added 100ms delays in tests that modify files to ensure filesystem timestamp updates
+- **Whitespace Handling**: Fixed inconsistent hash comparisons across test files
+- **Test Stability**: All 194 tests now pass consistently with shuffled execution order
+
+#### Implementation Details
+- Created shared `readHashFromFile()` helper in `test/test_utils.*`
+- Added `<thread>` and `<chrono>` includes to test files
+- Applied delays in `AddCommandTest.AddModifiedFile`
+- Applied delays in `CommitCommandTest.CommitWithAMFlag`
+- Applied delays in `ResetCommandTest.ResetOneCommitBack` and `ResetTwoCommitsBack`
+
+#### Files Modified
+- `test/test_utils.hpp/cpp` - Added `readHashFromFile()` utility
+- `test/commands/test_add.cpp` - Added includes and delay
+- `test/commands/test_commit.cpp` - Updated to use `readHashFromFile()` and added delays
+- `test/commands/test_reset.cpp` - Updated to use `readHashFromFile()` and added delays
+- `test/commands/test_log.cpp` - Updated to use `readHashFromFile()`
+- `test/integration/test_git_workflow.cpp` - Updated to use `readHashFromFile()`
+
+### Enhanced - Checkout Command Phase 3: File and Directory Cleanup (2025-01-02)
+
+#### Working Tree Cleanup
+- **File Removal**: Checkout now removes files not present in target branch's tree
+- **Directory Cleanup**: Automatically removes empty directories after file removal
+- **Git Compatibility**: Matches Git's behavior for branch switching and file cleanup
+
+#### Implementation Details
+- Compares old index with new index to identify files to remove
+- Recursively removes empty directories after file cleanup
+- Uses `removeEmptyDirs()` helper function for directory traversal
+- Handles nested directory structures properly
+
+#### Testing
+- Added `CheckoutRemovesFilesOnBranchSwitch` integration test
+- Added `CheckoutRemovesEmptyDirectories` integration test
+- Added `CheckoutPreservesCommonFiles` integration test
+- Total test count: 194 tests (up from 190)
+
+#### Files Modified
+- `src/cli/commands/CheckoutCommand.cpp` - Added file/directory cleanup logic
+- `docs/CHECKOUT_IMPLEMENTATION_PLAN.md` - Marked file cleanup as complete
+- `docs/ARCHITECTURE.md` - Updated checkout documentation
+- `test/integration/test_git_workflow.cpp` - Added new tests
+
 ### Added - Checkout Command for Branch Management (2025-01-02)
 
 #### Branch Switching and Creation
@@ -55,16 +133,15 @@ All notable changes to the Gitter project will be documented in this file.
 - Updates index with restored files and metadata
 - Maintains file permissions and timestamps
 
-#### Remaining Limitations
-- No conflict detection for uncommitted changes
-- No automatic removal of untracked files not in target branch
-- No detached HEAD support
-
 #### Files Modified
 - `src/core/ObjectStore.hpp/cpp` - Added `readTree()` and `readBlob()` methods
 - `src/cli/commands/CheckoutCommand.cpp` - Added tree restoration logic
 - `docs/CHECKOUT_IMPLEMENTATION_PLAN.md` - Marked Phase 2 as complete
 - `docs/ARCHITECTURE.md` - Updated checkout flow diagram
+
+#### Remaining Limitations
+- No conflict detection for uncommitted changes
+- No detached HEAD support
 
 ### Added - Multiple -m Flag Support for Commit Messages (2025-01-02)
 

@@ -409,6 +409,9 @@ These have Git-specific knowledge and shouldn't move.
    - Switches to existing branches
    - Creates new branches with `-b` flag
    - Updates HEAD reference
+   - **Working tree restoration**: Restores files from tree objects
+   - **File cleanup**: Removes files not in target branch
+   - **Directory cleanup**: Removes empty directories recursively
    - Provides Git-compatible error messages
    - Implementation plan: `docs/CHECKOUT_IMPLEMENTATION_PLAN.md`
 
@@ -418,11 +421,6 @@ These have Git-specific knowledge and shouldn't move.
    - Compares trees/commits
    - Generates patch format output
    - Shows file-level diffs
-
-2. **Working Tree Restoration**
-   - Restore files from tree objects
-   - Handle directories and nested structures
-   - Clean up files not in branch
 
 ### Extensibility Points
 

@@ -2,7 +2,7 @@
 
 ## Overview
 
-Gitter has comprehensive test coverage with **190 unit tests** covering all major components.
+Gitter has comprehensive test coverage with **202 tests** covering all major components.
 
 ## Why Separate Coverage Build?
 
@@ -54,11 +54,11 @@ gcov -b -m CMakeFiles/gitter_lib.dir/src/cli/commands/AddCommand.cpp.gcda
 From gcov analysis:
 
 ### Commands
-- **AddCommand.cpp**: 88.68% lines, 74.76% branches
+- **AddCommand.cpp**: 87.78% lines, 75.53% branches ⬆ (improved with error path tests)
 - **CommitCommand.cpp**: 87.93% lines
 - **StatusCommand.cpp**: 88.28% lines
 - **LogCommand.cpp**: 80.95% lines (18 test cases)
-- **CheckoutCommand.cpp**: 82.57% lines (13 test cases) ⬆
+- **CheckoutCommand.cpp**: 82.57% lines (13 test cases) ⬆ (with file/directory cleanup)
 - **RestoreCommand.cpp**: 93.33% lines
 - **ResetCommand.cpp**: 86.27% lines
 - **InitCommand.cpp**: 91.67% lines
@@ -70,14 +70,14 @@ From gcov analysis:
 
 ### Test Distribution
 
-- **Commands**: ~190 tests
+- **Commands**: ~202 tests
   - Init, Add, Commit, Status, Log (18 tests), Restore, Reset, Checkout (13 tests), CatFile, Help
 - **Core**: ~40 tests
   - Repository, Index, ObjectStore, TreeBuilder
 - **Util**: ~20 tests
   - Hasher (SHA-1, SHA-256), PatternMatcher
-- **Integration**: ~80 tests
-  - Complete Git-like workflows
+- **Integration**: ~89 tests
+  - Complete Git-like workflows (including checkout file/directory cleanup tests)
 
 ## Coverage Gaps (Areas for Improvement)
 

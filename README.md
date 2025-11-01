@@ -459,6 +459,8 @@ gitter status  # Reset files should be untracked
 - **Duplicate commit prevention**
 - **Silent commit output (Git-like)**
 - **Reset command with HEAD~n syntax**
+- **Checkout command with working tree restoration**
+- **Branch management (create/switch branches)**
 - Status detection (staged/modified/untracked) with Git optimization
 - Unstaging with patterns
 - Git-compliant blob/tree/commit object storage
@@ -471,7 +473,7 @@ gitter status  # Reset files should be untracked
 - **Code quality**: Constants extraction, input validation, graceful recovery
 
 ### Next Steps 🚧
-- Branch management (delete, rename branches)
+- Advanced branch management (delete, rename branches)
 - Diff output for file changes
 - Merge commits (basic merge support)
 - Remote operations (push/pull/fetch)

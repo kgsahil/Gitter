@@ -206,7 +206,8 @@ Expected<void> CheckoutCommand::execute(const AppContext&, const std::vector<std
 4. ✅ Restore all files from blobs to working directory - `ObjectStore::readBlob()`
 5. ✅ Restore subdirectories as needed - Recursive directory creation
 6. ✅ Update index to match branch state - Index rebuilt from tree
-7. ⏸️ Remove files not in branch (deferred to future)
+7. ✅ Remove files not in branch - Compares current/target commit trees and removes files
+8. ✅ Remove empty directories - Recursive cleanup after file removal
 
 **Key Methods Added:**
 
@@ -215,8 +216,10 @@ Expected<void> CheckoutCommand::execute(const AppContext&, const std::vector<std
 - `readBlob(hash)` - Reads and parses blob objects
 
 **CheckoutCommand:**
-- `readBranchCommit()` - Reads commit hash from branch ref file
+- `readBranchCommit()` - Reads commit hash from branch ref file (now uses `Repository::getBranchCommit()`)
 - `restoreTree()` - Recursively restores files from tree to working directory
+- `removeEmptyDirs()` - Recursively removes empty directories after file cleanup
+- `collectTreeFiles()` - Recursively collects all file paths from a tree object
 
 ### Phase 3: Safety Checks
 
@@ -227,10 +230,10 @@ Expected<void> CheckoutCommand::execute(const AppContext&, const std::vector<std
    - Gitter (MVP): Could warn or allow overwrite
    - Decision needed for initial implementation
 
-2. **Uncommitted changes in index**
-   - Git requires commit or stash
-   - Gitter (MVP): Could clear index as warning
-   - Decision needed for initial implementation
+2. **Uncommitted changes in index** ✅ IMPLEMENTED
+   - Git preserves staged files across branch switches
+   - Gitter: Index is intelligently merged to preserve staged files (Git-compatible)
+   - Implementation: Only remove entries tracked in current commit, only add entries not already in index
 
 3. **Detached HEAD state**
    - Currently not supported

@@ -3,6 +3,7 @@
 #include <fstream>
 #include <thread>
 #include <chrono>
+#include <sstream>
 #include "test_utils.hpp"
 #include "cli/commands/AddCommand.hpp"
 #include "core/Repository.hpp"
@@ -175,15 +176,6 @@ TEST_F(AddCommandTest, AddGlobPatternWithQuestionMark) {
     EXPECT_TRUE(entries.find("test2.py") != entries.end());
 }
 
-// Test: Add non-existent file (should warn but not crash)
-TEST_F(AddCommandTest, AddNonExistentFile) {
-    AddCommand cmd;
-    
-    std::vector<std::string> args{"nonexistent.txt"};
-    auto result = cmd.execute(ctx, args);
-    // Should complete without error (just warns)
-    // Result may or may not be successful depending on implementation
-}
 
 // Test: Add file, modify it, add again (should update index)
 TEST_F(AddCommandTest, AddModifiedFile) {
@@ -351,4 +343,64 @@ TEST_F(AddCommandTest, AddNoArguments) {
     EXPECT_FALSE(result.has_value());
     EXPECT_EQ(result.error().code, ErrorCode::InvalidArgs);
 }
+
+// Test: Add non-existent file (should show warning)
+TEST_F(AddCommandTest, AddNonExistentFile) {
+    AddCommand cmd;
+    std::vector<std::string> args{"nonexistent.txt"};
+    
+    // Capture stderr
+    std::stringstream stderrCapture;
+    std::streambuf* oldCerr = std::cerr.rdbuf();
+    std::cerr.rdbuf(stderrCapture.rdbuf());
+    
+    auto result = cmd.execute(ctx, args);
+    
+    // Restore stderr
+    std::cerr.rdbuf(oldCerr);
+    
+    // Should succeed but show warning
+    EXPECT_TRUE(result.has_value());
+    
+    std::string output = stderrCapture.str();
+    EXPECT_NE(output.find("warning: path does not exist"), std::string::npos);
+}
+
+// Test: Add pattern with no matches (should show warning)
+TEST_F(AddCommandTest, AddPatternNoMatches) {
+    AddCommand cmd;
+    std::vector<std::string> args{"*.nonexistent"};
+    
+    // Capture stderr
+    std::stringstream stderrCapture;
+    std::streambuf* oldCerr = std::cerr.rdbuf();
+    std::cerr.rdbuf(stderrCapture.rdbuf());
+    
+    auto result = cmd.execute(ctx, args);
+    
+    // Restore stderr
+    std::cerr.rdbuf(oldCerr);
+    
+    // Should succeed but show warning
+    EXPECT_TRUE(result.has_value());
+    
+    std::string output = stderrCapture.str();
+    EXPECT_NE(output.find("warning: no files match pattern"), std::string::npos);
+}
+
+// Test: Try to add .gitter directory (should skip silently)
+TEST_F(AddCommandTest, AddGitterDirectory) {
+    AddCommand cmd;
+    std::vector<std::string> args{".gitter"};
+    
+    // Should succeed and skip .gitter silently
+    auto result = cmd.execute(ctx, args);
+    EXPECT_TRUE(result.has_value());
+    
+    // Index should be empty (no files added)
+    Index index;
+    index.load(tempDir);
+    EXPECT_TRUE(index.entries().empty());
+}
+
 

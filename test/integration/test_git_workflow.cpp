@@ -2,6 +2,8 @@
 
 #include <fstream>
 #include <sstream>
+#include <thread>
+#include <chrono>
 
 #include "test_utils.hpp"
 #include "cli/CommandFactory.hpp"
@@ -843,6 +845,432 @@ TEST_F(GitWorkflowTest, StatusShowsOnlyModifiedFilesAsStaged) {
     EXPECT_NE(statusOutput.find("Changes to be committed"), std::string::npos);
     EXPECT_NE(statusOutput.find("file1.txt"), std::string::npos);
     EXPECT_EQ(statusOutput.find("file2.txt"), std::string::npos) << "file2.txt should not be listed as staged";
+}
+
+/**
+ * @brief Test: Checkout removes files from working tree when switching branches
+ * Positive: Files unique to a branch are removed when switching away
+ */
+TEST_F(GitWorkflowTest, CheckoutRemovesFilesOnBranchSwitch) {
+    auto initCmd = CommandFactory::instance().create("init");
+    auto addCmd = CommandFactory::instance().create("add");
+    auto commitCmd = CommandFactory::instance().create("commit");
+    auto checkoutCmd = CommandFactory::instance().create("checkout");
+    
+    // Initialize repository
+    invoker.invoke(*initCmd, ctx, {});
+    
+    // Create initial commit on main
+    createFile(repoPath, "file1.txt", "content1");
+    invoker.invoke(*addCmd, ctx, {"."});
+    invoker.invoke(*commitCmd, ctx, {"-m", "Initial"});
+    
+    // Create feature branch with additional file
+    invoker.invoke(*checkoutCmd, ctx, {"-b", "feature"});
+    createFile(repoPath, "file2.txt", "content2");
+    invoker.invoke(*addCmd, ctx, {"file2.txt"});
+    invoker.invoke(*commitCmd, ctx, {"-m", "Add file2"});
+    
+    // Verify file2 exists
+    EXPECT_TRUE(fs::exists(repoPath / "file2.txt"));
+    
+    // Switch back to main
+    invoker.invoke(*checkoutCmd, ctx, {"main"});
+    
+    // Verify file2 is removed
+    EXPECT_FALSE(fs::exists(repoPath / "file2.txt"));
+    
+    // Verify file1 still exists
+    EXPECT_TRUE(fs::exists(repoPath / "file1.txt"));
+    
+    // Switch back to feature
+    invoker.invoke(*checkoutCmd, ctx, {"feature"});
+    
+    // Verify file2 is restored
+    EXPECT_TRUE(fs::exists(repoPath / "file2.txt"));
+    EXPECT_TRUE(fs::exists(repoPath / "file1.txt"));
+}
+
+/**
+ * @brief Test: Checkout removes empty directories when switching branches
+ * Positive: Directories that only contained files from another branch are removed
+ */
+TEST_F(GitWorkflowTest, CheckoutRemovesEmptyDirectories) {
+    auto initCmd = CommandFactory::instance().create("init");
+    auto addCmd = CommandFactory::instance().create("add");
+    auto commitCmd = CommandFactory::instance().create("commit");
+    auto checkoutCmd = CommandFactory::instance().create("checkout");
+    
+    // Initialize repository
+    invoker.invoke(*initCmd, ctx, {});
+    
+    // Create commit with nested directory on main
+    fs::create_directories(repoPath / "deep" / "nested" / "path");
+    createFile(repoPath, "deep/nested/path/file1.txt", "content1");
+    invoker.invoke(*addCmd, ctx, {"."});
+    invoker.invoke(*commitCmd, ctx, {"-m", "Initial"});
+    
+    // Create feature branch with different nested directory
+    invoker.invoke(*checkoutCmd, ctx, {"-b", "feature"});
+    fs::create_directories(repoPath / "another" / "path");
+    createFile(repoPath, "another/path/file2.txt", "content2");
+    invoker.invoke(*addCmd, ctx, {"."});
+    invoker.invoke(*commitCmd, ctx, {"-m", "Add file2"});
+    
+    // Verify another/path exists
+    EXPECT_TRUE(fs::exists(repoPath / "another" / "path" / "file2.txt"));
+    
+    // Switch back to main
+    invoker.invoke(*checkoutCmd, ctx, {"main"});
+    
+    // Verify another/path directory is removed
+    EXPECT_FALSE(fs::exists(repoPath / "another" / "path"));
+    
+    // Verify deep/nested/path still exists
+    EXPECT_TRUE(fs::exists(repoPath / "deep" / "nested" / "path" / "file1.txt"));
+}
+
+/**
+ * @brief Test: Checkout preserves files common to both branches
+ * Positive: Files that exist in both branches remain unchanged when switching
+ */
+TEST_F(GitWorkflowTest, CheckoutPreservesCommonFiles) {
+    auto initCmd = CommandFactory::instance().create("init");
+    auto addCmd = CommandFactory::instance().create("add");
+    auto commitCmd = CommandFactory::instance().create("commit");
+    auto checkoutCmd = CommandFactory::instance().create("checkout");
+    
+    // Initialize repository
+    invoker.invoke(*initCmd, ctx, {});
+    
+    // Create commit on main
+    createFile(repoPath, "common.txt", "v1");
+    createFile(repoPath, "main-only.txt", "main");
+    invoker.invoke(*addCmd, ctx, {"."});
+    invoker.invoke(*commitCmd, ctx, {"-m", "Main commit"});
+    
+    // Create feature branch with modified common file and new file
+    invoker.invoke(*checkoutCmd, ctx, {"-b", "feature"});
+    createFile(repoPath, "common.txt", "v2");
+    createFile(repoPath, "feature-only.txt", "feature");
+    invoker.invoke(*addCmd, ctx, {"."});
+    invoker.invoke(*commitCmd, ctx, {"-m", "Feature commit"});
+    
+    // Switch back to main
+    invoker.invoke(*checkoutCmd, ctx, {"main"});
+    
+    // Verify common file is restored to v1
+    EXPECT_TRUE(fs::exists(repoPath / "common.txt"));
+    std::string content = readFile(repoPath / "common.txt");
+    EXPECT_EQ(content, "v1");
+    
+    // Verify main-only file exists
+    EXPECT_TRUE(fs::exists(repoPath / "main-only.txt"));
+    
+    // Verify feature-only file is removed
+    EXPECT_FALSE(fs::exists(repoPath / "feature-only.txt"));
+}
+
+/**
+ * @brief Test: Reset does not modify working tree
+ * Positive: Files in working tree remain unchanged after reset
+ */
+TEST_F(GitWorkflowTest, ResetDoesNotModifyWorkingTree) {
+    auto initCmd = CommandFactory::instance().create("init");
+    auto addCmd = CommandFactory::instance().create("add");
+    auto commitCmd = CommandFactory::instance().create("commit");
+    auto resetCmd = CommandFactory::instance().create("reset");
+    auto statusCmd = CommandFactory::instance().create("status");
+    
+    // Initialize repository
+    invoker.invoke(*initCmd, ctx, {});
+    
+    // Create two commits
+    createFile(repoPath, "file.txt", "v1");
+    invoker.invoke(*addCmd, ctx, {"file.txt"});
+    invoker.invoke(*commitCmd, ctx, {"-m", "First"});
+    
+    createFile(repoPath, "file.txt", "v2");
+    invoker.invoke(*addCmd, ctx, {"file.txt"});
+    invoker.invoke(*commitCmd, ctx, {"-m", "Second"});
+    
+    // Verify file contains v2
+    EXPECT_TRUE(fs::exists(repoPath / "file.txt"));
+    std::string content = readFile(repoPath / "file.txt");
+    EXPECT_EQ(content, "v2");
+    
+    // Reset to HEAD~1
+    invoker.invoke(*resetCmd, ctx, {"HEAD~1"});
+    
+    // Verify file still contains v2 (working tree unchanged)
+    content = readFile(repoPath / "file.txt");
+    EXPECT_EQ(content, "v2");
+    
+    // Verify status shows file as untracked (index was cleared)
+    testing::internal::CaptureStdout();
+    invoker.invoke(*statusCmd, ctx, {});
+    std::string statusOutput = testing::internal::GetCapturedStdout();
+    EXPECT_TRUE(statusOutput.find("Untracked files") != std::string::npos);
+    EXPECT_TRUE(statusOutput.find("file.txt") != std::string::npos);
+}
+
+/**
+ * @brief Test: Checkout preserves staged uncommitted files (Git-compatible behavior)
+ */
+TEST_F(GitWorkflowTest, CheckoutPreservesStagedFiles) {
+    auto initCmd = CommandFactory::instance().create("init");
+    auto addCmd = CommandFactory::instance().create("add");
+    auto commitCmd = CommandFactory::instance().create("commit");
+    auto checkoutCmd = CommandFactory::instance().create("checkout");
+    auto statusCmd = CommandFactory::instance().create("status");
+    
+    // Initialize repository
+    invoker.invoke(*initCmd, ctx, {});
+    
+    // Create initial commit on main
+    createFile(repoPath, "file1.txt", "content1");
+    invoker.invoke(*addCmd, ctx, {"."});
+    invoker.invoke(*commitCmd, ctx, {"-m", "Initial"});
+    
+    // Create feature branch
+    invoker.invoke(*checkoutCmd, ctx, {"-b", "feature"});
+    
+    // Add a new file and stage it (but don't commit)
+    createFile(repoPath, "file2.txt", "content2");
+    invoker.invoke(*addCmd, ctx, {"file2.txt"});
+    
+    // Switch back to main
+    invoker.invoke(*checkoutCmd, ctx, {"main"});
+    
+    // Switch back to feature
+    invoker.invoke(*checkoutCmd, ctx, {"feature"});
+    
+    // Check status - file2 should be staged (preserved like Git)
+    testing::internal::CaptureStdout();
+    invoker.invoke(*statusCmd, ctx, {});
+    std::string statusOutput = testing::internal::GetCapturedStdout();
+    
+    // Git-compatible behavior: staged files are preserved
+    EXPECT_TRUE(statusOutput.find("Changes to be committed") != std::string::npos);
+    EXPECT_TRUE(statusOutput.find("file2.txt") != std::string::npos);
+    
+    // File2 should still exist in working tree
+    EXPECT_TRUE(fs::exists(repoPath / "file2.txt"));
+}
+
+/**
+ * @brief Test: Staged modified files preserved across branch switches
+ */
+TEST_F(GitWorkflowTest, CheckoutPreservesModifiedStagedFiles) {
+    auto initCmd = CommandFactory::instance().create("init");
+    auto addCmd = CommandFactory::instance().create("add");
+    auto commitCmd = CommandFactory::instance().create("commit");
+    auto checkoutCmd = CommandFactory::instance().create("checkout");
+    auto statusCmd = CommandFactory::instance().create("status");
+    
+    invoker.invoke(*initCmd, ctx, {});
+    
+    // Initial commit
+    createFile(repoPath, "file.txt", "original");
+    invoker.invoke(*addCmd, ctx, {"."});
+    invoker.invoke(*commitCmd, ctx, {"-m", "Initial"});
+    
+    // Create branch
+    invoker.invoke(*checkoutCmd, ctx, {"-b", "feature"});
+    
+    // Modify and stage
+    std::this_thread::sleep_for(std::chrono::milliseconds(100)); // Ensure mtime differs
+    createFile(repoPath, "file.txt", "modified");
+    invoker.invoke(*addCmd, ctx, {"file.txt"});
+    
+    // Switch to main and back
+    invoker.invoke(*checkoutCmd, ctx, {"main"});
+    invoker.invoke(*checkoutCmd, ctx, {"feature"});
+    
+    // Verify staged modification preserved
+    testing::internal::CaptureStdout();
+    invoker.invoke(*statusCmd, ctx, {});
+    std::string statusOutput = testing::internal::GetCapturedStdout();
+    
+    EXPECT_TRUE(statusOutput.find("Changes to be committed") != std::string::npos);
+    EXPECT_TRUE(statusOutput.find("modified: file.txt") != std::string::npos);
+}
+
+/**
+ * @brief Test: Multiple files staged across different branches
+ */
+TEST_F(GitWorkflowTest, CheckoutPreservesMultipleStagedFiles) {
+    auto initCmd = CommandFactory::instance().create("init");
+    auto addCmd = CommandFactory::instance().create("add");
+    auto commitCmd = CommandFactory::instance().create("commit");
+    auto checkoutCmd = CommandFactory::instance().create("checkout");
+    auto statusCmd = CommandFactory::instance().create("status");
+    
+    invoker.invoke(*initCmd, ctx, {});
+    
+    createFile(repoPath, "common.txt", "content");
+    invoker.invoke(*addCmd, ctx, {"."});
+    invoker.invoke(*commitCmd, ctx, {"-m", "Initial"});
+    
+    // Add files on main
+    createFile(repoPath, "main1.txt", "main1");
+    createFile(repoPath, "main2.txt", "main2");
+    invoker.invoke(*addCmd, ctx, {"."});
+    
+    // Create and switch to feature
+    invoker.invoke(*checkoutCmd, ctx, {"-b", "feature"});
+    
+    // Add files on feature
+    createFile(repoPath, "feature1.txt", "feature1");
+    createFile(repoPath, "feature2.txt", "feature2");
+    invoker.invoke(*addCmd, ctx, {"."});
+    
+    // Switch back to main
+    invoker.invoke(*checkoutCmd, ctx, {"main"});
+    
+    testing::internal::CaptureStdout();
+    invoker.invoke(*statusCmd, ctx, {});
+    std::string status = testing::internal::GetCapturedStdout();
+    
+    // Git preserves ALL staged files across branches
+    EXPECT_TRUE(status.find("main1.txt") != std::string::npos);
+    EXPECT_TRUE(status.find("main2.txt") != std::string::npos);
+    EXPECT_TRUE(status.find("feature1.txt") != std::string::npos);
+    EXPECT_TRUE(status.find("feature2.txt") != std::string::npos);
+    
+    // Switch back to feature
+    invoker.invoke(*checkoutCmd, ctx, {"feature"});
+    
+    testing::internal::CaptureStdout();
+    invoker.invoke(*statusCmd, ctx, {});
+    status = testing::internal::GetCapturedStdout();
+    
+    // Git preserves ALL staged files across branches
+    EXPECT_TRUE(status.find("main1.txt") != std::string::npos);
+    EXPECT_TRUE(status.find("main2.txt") != std::string::npos);
+    EXPECT_TRUE(status.find("feature1.txt") != std::string::npos);
+    EXPECT_TRUE(status.find("feature2.txt") != std::string::npos);
+}
+
+/**
+ * @brief Test: Complex branch with staged, modified, and untracked files
+ */
+TEST_F(GitWorkflowTest, CheckoutComplexStagingState) {
+    auto initCmd = CommandFactory::instance().create("init");
+    auto addCmd = CommandFactory::instance().create("add");
+    auto commitCmd = CommandFactory::instance().create("commit");
+    auto checkoutCmd = CommandFactory::instance().create("checkout");
+    auto statusCmd = CommandFactory::instance().create("status");
+    
+    invoker.invoke(*initCmd, ctx, {});
+    
+    // Setup
+    createFile(repoPath, "tracked.txt", "original");
+    invoker.invoke(*addCmd, ctx, {"."});
+    invoker.invoke(*commitCmd, ctx, {"-m", "Initial"});
+    
+    invoker.invoke(*checkoutCmd, ctx, {"-b", "branch"});
+    
+    // Staged new file
+    createFile(repoPath, "new.txt", "content");
+    invoker.invoke(*addCmd, ctx, {"new.txt"});
+    
+    // Staged modified file
+    createFile(repoPath, "tracked.txt", "modified");
+    invoker.invoke(*addCmd, ctx, {"tracked.txt"});
+    
+    // Untracked file
+    createFile(repoPath, "untracked.txt", "untracked");
+    
+    // Switch branches
+    invoker.invoke(*checkoutCmd, ctx, {"main"});
+    invoker.invoke(*checkoutCmd, ctx, {"branch"});
+    
+    testing::internal::CaptureStdout();
+    invoker.invoke(*statusCmd, ctx, {});
+    std::string status = testing::internal::GetCapturedStdout();
+    
+    // Verify all states preserved
+    EXPECT_TRUE(status.find("new.txt") != std::string::npos);
+    EXPECT_TRUE(status.find("tracked.txt") != std::string::npos);
+    EXPECT_TRUE(status.find("untracked.txt") != std::string::npos);
+}
+
+/**
+ * @brief Test: Nested directory with staged files across branches
+ */
+TEST_F(GitWorkflowTest, CheckoutNestedDirectoryStaging) {
+    auto initCmd = CommandFactory::instance().create("init");
+    auto addCmd = CommandFactory::instance().create("add");
+    auto commitCmd = CommandFactory::instance().create("commit");
+    auto checkoutCmd = CommandFactory::instance().create("checkout");
+    auto statusCmd = CommandFactory::instance().create("status");
+    
+    invoker.invoke(*initCmd, ctx, {});
+    
+    fs::create_directories(repoPath / "dir");
+    createFile(repoPath / "dir", "file.txt", "content");
+    invoker.invoke(*addCmd, ctx, {"."});
+    invoker.invoke(*commitCmd, ctx, {"-m", "Initial"});
+    
+    invoker.invoke(*checkoutCmd, ctx, {"-b", "feature"});
+    
+    // Add nested file
+    fs::create_directories(repoPath / "dir" / "subdir");
+    createFile(repoPath / "dir" / "subdir", "nested.txt", "nested");
+    invoker.invoke(*addCmd, ctx, {"."});
+    
+    // Switch branches
+    invoker.invoke(*checkoutCmd, ctx, {"main"});
+    invoker.invoke(*checkoutCmd, ctx, {"feature"});
+    
+    testing::internal::CaptureStdout();
+    invoker.invoke(*statusCmd, ctx, {});
+    std::string status = testing::internal::GetCapturedStdout();
+    
+    EXPECT_TRUE(status.find("dir/subdir/nested.txt") != std::string::npos);
+}
+
+/**
+ * @brief Test: Branch divergence and merge-like scenarios
+ */
+TEST_F(GitWorkflowTest, CheckoutWithDivergentBranches) {
+    auto initCmd = CommandFactory::instance().create("init");
+    auto addCmd = CommandFactory::instance().create("add");
+    auto commitCmd = CommandFactory::instance().create("commit");
+    auto checkoutCmd = CommandFactory::instance().create("checkout");
+    auto logCmd = CommandFactory::instance().create("log");
+    auto statusCmd = CommandFactory::instance().create("status");
+    
+    invoker.invoke(*initCmd, ctx, {});
+    
+    createFile(repoPath, "common.txt", "content");
+    invoker.invoke(*addCmd, ctx, {"."});
+    invoker.invoke(*commitCmd, ctx, {"-m", "Initial"});
+    
+    // Branch 1
+    invoker.invoke(*checkoutCmd, ctx, {"-b", "branch1"});
+    createFile(repoPath, "file1.txt", "content1");
+    invoker.invoke(*addCmd, ctx, {"."});
+    invoker.invoke(*commitCmd, ctx, {"-m", "Add file1"});
+    
+    // Back to main
+    invoker.invoke(*checkoutCmd, ctx, {"main"});
+    
+    // Branch 2
+    invoker.invoke(*checkoutCmd, ctx, {"-b", "branch2"});
+    createFile(repoPath, "file2.txt", "content2");
+    invoker.invoke(*addCmd, ctx, {"."});
+    invoker.invoke(*commitCmd, ctx, {"-m", "Add file2"});
+    
+    // Verify isolation
+    EXPECT_TRUE(fs::exists(repoPath / "common.txt"));
+    EXPECT_TRUE(fs::exists(repoPath / "file2.txt"));
+    EXPECT_FALSE(fs::exists(repoPath / "file1.txt"));
+    
+    invoker.invoke(*checkoutCmd, ctx, {"branch1"});
+    EXPECT_TRUE(fs::exists(repoPath / "file1.txt"));
+    EXPECT_FALSE(fs::exists(repoPath / "file2.txt"));
 }
 
 } // namespace gitter::test
