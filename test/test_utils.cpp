@@ -1,5 +1,6 @@
 #include "test_utils.hpp"
 
+#include <cctype>
 #include <filesystem>
 #include <fstream>
 #include <random>
@@ -94,6 +95,23 @@ fs::path getCwd() {
 
 void setCwd(const fs::path& dir) {
     fs::current_path(dir);
+}
+
+std::string readHashFromFile(const fs::path& filePath) {
+    std::ifstream file(filePath);
+    if (!file) {
+        return std::string();
+    }
+    
+    std::string hash;
+    std::getline(file, hash);
+    
+    // Remove any trailing whitespace
+    while (!hash.empty() && std::isspace(static_cast<unsigned char>(hash.back()))) {
+        hash.pop_back();
+    }
+    
+    return hash;
 }
 
 } // namespace gitter::test::utils

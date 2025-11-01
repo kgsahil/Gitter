@@ -163,9 +163,7 @@ TEST_F(LogCommandTest, LogShowsCommitHash) {
     // Get commit hash
     ObjectStore store(tempDir);
     fs::path refFile = tempDir / ".gitter" / "refs" / "heads" / "main";
-    std::ifstream rf(refFile);
-    std::string commitHash;
-    std::getline(rf, commitHash);
+    std::string commitHash = readHashFromFile(refFile);
     
     clearOutput();
     logCmd.execute(ctx, {});

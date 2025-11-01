@@ -1,7 +1,10 @@
 #include <gtest/gtest.h>
+#include <cctype>
+#include <chrono>
 #include <filesystem>
 #include <fstream>
 #include <sstream>
+#include <thread>
 #include "test_utils.hpp"
 #include "cli/commands/ResetCommand.hpp"
 #include "cli/commands/AddCommand.hpp"
@@ -67,12 +70,14 @@ std::string getHEAD(const fs::path& root) {
     if (headContent.rfind("ref: ", 0) == 0) {
         std::string refPath = headContent.substr(5);
         std::filesystem::path refFile = root / ".gitter" / refPath;
-        std::ifstream rf(refFile);
-        std::string hash;
-        std::getline(rf, hash);
-        rf.close();
-        return hash;
+        return readHashFromFile(refFile);
     }
+    
+    // Remove any trailing whitespace from detached HEAD
+    while (!headContent.empty() && std::isspace(static_cast<unsigned char>(headContent.back()))) {
+        headContent.pop_back();
+    }
+    
     return headContent;
 }
 
@@ -126,6 +131,7 @@ TEST_F(ResetCommandTest, ResetOneCommitBack) {
     std::string firstHash = getHEAD(tempDir);
     
     // Create second commit
+    std::this_thread::sleep_for(std::chrono::milliseconds(100));
     createFile(tempDir, "file.txt", "content2");
     addCmd.execute(ctx, {"file.txt"});
     commitCmd.execute(ctx, {"-m", "Second"});
@@ -152,11 +158,13 @@ TEST_F(ResetCommandTest, ResetTwoCommitsBack) {
     std::string firstHash = getHEAD(tempDir);
     
     // Create second commit
+    std::this_thread::sleep_for(std::chrono::milliseconds(100));
     createFile(tempDir, "file.txt", "content2");
     addCmd.execute(ctx, {"file.txt"});
     commitCmd.execute(ctx, {"-m", "Second"});
     
     // Create third commit
+    std::this_thread::sleep_for(std::chrono::milliseconds(100));
     createFile(tempDir, "file.txt", "content3");
     addCmd.execute(ctx, {"file.txt"});
     commitCmd.execute(ctx, {"-m", "Third"});

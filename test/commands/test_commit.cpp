@@ -1,6 +1,8 @@
 #include <gtest/gtest.h>
 #include <filesystem>
 #include <fstream>
+#include <thread>
+#include <chrono>
 #include "test_utils.hpp"
 #include "cli/commands/CommitCommand.hpp"
 #include "cli/commands/AddCommand.hpp"
@@ -62,10 +64,7 @@ TEST_F(CommitCommandTest, CommitWithMessage) {
     fs::path refFile = tempDir / ".gitter" / refPath;
     ASSERT_TRUE(fs::exists(refFile));
     
-    std::ifstream rf(refFile);
-    std::string commitHash;
-    std::getline(rf, commitHash);
-    rf.close();
+    std::string commitHash = readHashFromFile(refFile);
     
     // Verify commit object exists
     ObjectStore store(tempDir);
@@ -114,9 +113,7 @@ TEST_F(CommitCommandTest, RootCommit) {
     // Verify commit object
     ObjectStore store(tempDir);
     fs::path refFile = tempDir / ".gitter" / "refs" / "heads" / "main";
-    std::ifstream rf(refFile);
-    std::string commitHash;
-    std::getline(rf, commitHash);
+    std::string commitHash = readHashFromFile(refFile);
     
     auto commit = store.readCommit(commitHash);
     EXPECT_TRUE(commit.parentHashes.empty()); // Root commit has no parent
@@ -143,9 +140,7 @@ TEST_F(CommitCommandTest, CommitWithParent) {
     // Verify second commit has parent
     ObjectStore store(tempDir);
     fs::path refFile = tempDir / ".gitter" / "refs" / "heads" / "main";
-    std::ifstream rf(refFile);
-    std::string commitHash;
-    std::getline(rf, commitHash);
+    std::string commitHash = readHashFromFile(refFile);
     
     auto commit = store.readCommit(commitHash);
     EXPECT_EQ(commit.message.find("Second commit"), 0);
@@ -162,7 +157,8 @@ TEST_F(CommitCommandTest, CommitWithAMFlag) {
     addCmd.execute(ctx, {"file.txt"});
     commitCmd.execute(ctx, {"-m", "First"});
     
-    // Modify file
+    // Modify file - add small delay to ensure mtime updates (filesystem granularity)
+    std::this_thread::sleep_for(std::chrono::milliseconds(100));
     createFile(tempDir, "file.txt", "content2");
     
     // Commit with -am (should auto-stage and commit modified file)
@@ -172,10 +168,7 @@ TEST_F(CommitCommandTest, CommitWithAMFlag) {
     
     // Verify commit was created
     fs::path refFile = tempDir / ".gitter" / "refs" / "heads" / "main";
-    std::ifstream rf(refFile);
-    std::string commitHash;
-    std::getline(rf, commitHash);
-    rf.close();
+    std::string commitHash = readHashFromFile(refFile);
     
     ObjectStore store(tempDir);
     auto commit = store.readCommit(commitHash);
@@ -204,9 +197,7 @@ TEST_F(CommitCommandTest, MultipleCommitsInSequence) {
     // Verify all commits exist
     ObjectStore store(tempDir);
     fs::path refFile = tempDir / ".gitter" / "refs" / "heads" / "main";
-    std::ifstream rf(refFile);
-    std::string commitHash;
-    std::getline(rf, commitHash);
+    std::string commitHash = readHashFromFile(refFile);
     
     // Traverse commit chain
     int count = 0;
@@ -243,9 +234,7 @@ TEST_F(CommitCommandTest, CommitWithSubdirectories) {
     // Verify tree objects created
     ObjectStore store(tempDir);
     fs::path refFile = tempDir / ".gitter" / "refs" / "heads" / "main";
-    std::ifstream rf(refFile);
-    std::string commitHash;
-    std::getline(rf, commitHash);
+    std::string commitHash = readHashFromFile(refFile);
     
     auto commit = store.readCommit(commitHash);
     // Tree hash should exist
@@ -272,9 +261,7 @@ TEST_F(CommitCommandTest, CommitUpdatesBranchReference) {
     fs::path refFile = tempDir / ".gitter" / "refs" / "heads" / "main";
     ASSERT_TRUE(fs::exists(refFile));
     
-    std::ifstream rf(refFile);
-    std::string commitHash;
-    std::getline(rf, commitHash);
+    std::string commitHash = readHashFromFile(refFile);
     
     // Should be a valid commit hash (40 chars for SHA-1)
     EXPECT_EQ(commitHash.length(), 40);
@@ -297,9 +284,7 @@ TEST_F(CommitCommandTest, CommitWithEnvironmentVariables) {
     // Verify commit object has author info
     ObjectStore store(tempDir);
     fs::path refFile = tempDir / ".gitter" / "refs" / "heads" / "main";
-    std::ifstream rf(refFile);
-    std::string commitHash;
-    std::getline(rf, commitHash);
+    std::string commitHash = readHashFromFile(refFile);
     
     auto commit = store.readCommit(commitHash);
     EXPECT_FALSE(commit.authorName.empty());
@@ -325,9 +310,7 @@ TEST_F(CommitCommandTest, CommitWithLongMessage) {
     // Verify message stored correctly
     ObjectStore store(tempDir);
     fs::path refFile = tempDir / ".gitter" / "refs" / "heads" / "main";
-    std::ifstream rf(refFile);
-    std::string commitHash;
-    std::getline(rf, commitHash);
+    std::string commitHash = readHashFromFile(refFile);
     
     auto commit = store.readCommit(commitHash);
     EXPECT_NE(commit.message.find("This is a very long"), std::string::npos);
@@ -349,9 +332,7 @@ TEST_F(CommitCommandTest, CommitCreatesTreeObjects) {
     // Get commit
     ObjectStore store(tempDir);
     fs::path refFile = tempDir / ".gitter" / "refs" / "heads" / "main";
-    std::ifstream rf(refFile);
-    std::string commitHash;
-    std::getline(rf, commitHash);
+    std::string commitHash = readHashFromFile(refFile);
     
     auto commit = store.readCommit(commitHash);
     
@@ -376,9 +357,7 @@ TEST_F(CommitCommandTest, CommitMessageWithSpecialChars) {
     // Verify message stored correctly
     ObjectStore store(tempDir);
     fs::path refFile = tempDir / ".gitter" / "refs" / "heads" / "main";
-    std::ifstream rf(refFile);
-    std::string commitHash;
-    std::getline(rf, commitHash);
+    std::string commitHash = readHashFromFile(refFile);
     
     auto commit = store.readCommit(commitHash);
     EXPECT_EQ(commit.message, message + "\n");
@@ -406,10 +385,7 @@ TEST_F(CommitCommandTest, CommitWithAutoStageFlag) {
     
     // Verify commit was created
     fs::path refFile = tempDir / ".gitter" / "refs" / "heads" / "main";
-    std::ifstream rf(refFile);
-    std::string commitHash;
-    std::getline(rf, commitHash);
-    rf.close();
+    std::string commitHash = readHashFromFile(refFile);
     
     ObjectStore store(tempDir);
     auto commit = store.readCommit(commitHash);
@@ -439,10 +415,7 @@ TEST_F(CommitCommandTest, CommitWithAMFlagMultipleFiles) {
     
     // Verify commit was created
     fs::path refFile = tempDir / ".gitter" / "refs" / "heads" / "main";
-    std::ifstream rf(refFile);
-    std::string commitHash;
-    std::getline(rf, commitHash);
-    rf.close();
+    std::string commitHash = readHashFromFile(refFile);
     
     ObjectStore store(tempDir);
     auto commit = store.readCommit(commitHash);

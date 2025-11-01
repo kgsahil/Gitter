@@ -1,6 +1,8 @@
 #include <gtest/gtest.h>
 #include <filesystem>
 #include <fstream>
+#include <thread>
+#include <chrono>
 #include "test_utils.hpp"
 #include "cli/commands/AddCommand.hpp"
 #include "core/Repository.hpp"
@@ -197,7 +199,8 @@ TEST_F(AddCommandTest, AddModifiedFile) {
     index1.load(tempDir);
     std::string hash1 = index1.entries().at("file.txt").hashHex;
     
-    // Modify file
+    // Modify file - add small delay to ensure mtime updates (filesystem granularity)
+    std::this_thread::sleep_for(std::chrono::milliseconds(100));
     createFile(tempDir, "file.txt", "content2");
     
     // Add again

@@ -134,11 +134,7 @@ TEST_F(GitWorkflowTest, BasicWorkflowInitAddCommitStatusLog) {
     
     // Read actual commit hash from ref
     std::string refPath = headContent.substr(5);
-    std::ifstream refFile(repoPath / ".gitter" / refPath);
-    ASSERT_TRUE(refFile.good());
-    std::string commitHash;
-    std::getline(refFile, commitHash);
-    refFile.close();
+    std::string commitHash = readHashFromFile(repoPath / ".gitter" / refPath);
     EXPECT_EQ(commitHash.length(), 40); // SHA-1 hash length
     
     // Verify: Commit object exists in objects/
@@ -332,10 +328,7 @@ TEST_F(GitWorkflowTest, MultipleCommitsChain) {
     std::getline(headFile, headContent);
     headFile.close();
     std::string refPath = headContent.substr(5);
-    
-    std::ifstream refFile(repoPath / ".gitter" / refPath);
-    std::getline(refFile, thirdHash);
-    refFile.close();
+    thirdHash = readHashFromFile(repoPath / ".gitter" / refPath);
     
     // Traverse parent chain
     ObjectStore store(repoPath);
@@ -531,10 +524,7 @@ TEST_F(GitWorkflowTest, ResetWorkflow) {
     std::getline(headFile, headContent);
     headFile.close();
     std::string refPath = headContent.substr(5);
-    std::ifstream refFile(repoPath / ".gitter" / refPath);
-    std::string firstHash;
-    std::getline(refFile, firstHash);
-    refFile.close();
+    std::string firstHash = readHashFromFile(repoPath / ".gitter" / refPath);
     
     // 3. Create second commit
     createFile(repoPath, "file2.txt", "content2");
@@ -558,10 +548,7 @@ TEST_F(GitWorkflowTest, ResetWorkflow) {
     std::getline(headFile2, headContent2);
     headFile2.close();
     std::string refPath2 = headContent2.substr(5);
-    std::ifstream refFile2(repoPath / ".gitter" / refPath2);
-    std::string resetHash;
-    std::getline(refFile2, resetHash);
-    refFile2.close();
+    std::string resetHash = readHashFromFile(repoPath / ".gitter" / refPath2);
     EXPECT_EQ(firstHash, resetHash);
     
     // Verify log shows only first commit

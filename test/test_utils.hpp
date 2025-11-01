@@ -86,6 +86,13 @@ std::filesystem::path getCwd();
  */
 void setCwd(const std::filesystem::path& dir);
 
+/**
+ * @brief Read and trim hash from file (removes trailing whitespace)
+ * @param filePath Path to file containing hash
+ * @return Trimmed hash string
+ */
+std::string readHashFromFile(const std::filesystem::path& filePath);
+
 } // namespace utils
 
 } // namespace gitter::test
