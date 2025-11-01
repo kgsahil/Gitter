@@ -30,10 +30,7 @@ Expected<void> Repository::init(const fs::path& path) {
         if (!head) return Error{ErrorCode::IoError, "Failed to write HEAD"};
         head << "ref: refs/heads/main\n";
     }
-    {
-        std::ofstream mainRef(gd / "refs" / "heads" / "main", std::ios::binary);
-        if (!mainRef) return Error{ErrorCode::IoError, "Failed to write main ref"};
-    }
+    // Don't create main ref file yet - Git creates it only on first commit
     rootPath = root;
     return {};
 }
@@ -199,6 +196,11 @@ Expected<std::string> Repository::getCurrentBranch(const fs::path& root) {
 }
 
 Expected<void> Repository::createBranch(const fs::path& root, const std::string& branchName, const std::string& commitHash) {
+    // Only create ref file if there's a commit hash (matches Git behavior)
+    if (commitHash.empty()) {
+        return {};
+    }
+    
     fs::path refFile = root / ".gitter" / "refs" / "heads" / branchName;
     
     // Create parent directories if needed

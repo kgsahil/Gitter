@@ -5,12 +5,12 @@
 #include <iostream>
 #include <string>
 #include <vector>
-#include <chrono>
 
 #include "core/Repository.hpp"
 #include "core/ObjectStore.hpp"
 #include "core/Index.hpp"
 #include "util/PatternMatcher.hpp"
+#include "util/FileMetadata.hpp"
 // Include concrete hasher to allow ObjectStore destructor instantiation
 #include "util/Sha1Hasher.hpp"
 
@@ -34,40 +34,17 @@ static Expected<void> addFileToIndex(const fs::path& filePath, const fs::path& r
     fs::path rel = fs::relative(filePath, root, ec);
     if (ec) rel = filePath;
 
-    // Get file metadata for fast check
-    uint64_t sizeBytes = static_cast<uint64_t>(fs::file_size(filePath, ec));
-    if (ec) sizeBytes = 0;
-    uint64_t mtimeNs = 0;
-    auto ft = fs::last_write_time(filePath, ec);
-    if (!ec) {
-        auto now_sys = std::chrono::system_clock::now();
-        auto now_file = fs::file_time_type::clock::now();
-        auto adj = ft - now_file + now_sys;
-        mtimeNs = static_cast<uint64_t>(std::chrono::duration_cast<std::chrono::nanoseconds>(adj.time_since_epoch()).count());
-    }
-
-    // Get file permissions (Git tracks mode)
-    uint32_t mode = 0;
-    auto status = fs::status(filePath, ec);
-    if (!ec) {
-        auto perms = status.permissions();
-        // Git uses octal mode: 0100644 (regular file) or 0100755 (executable)
-        // Normalize to Git mode: 0100644 for regular, 0100755 for executable
-        if ((perms & fs::perms::owner_exec) != fs::perms::none ||
-            (perms & fs::perms::group_exec) != fs::perms::none ||
-            (perms & fs::perms::others_exec) != fs::perms::none) {
-            mode = 0100755; // Executable
-        } else {
-            mode = 0100644; // Regular file
-        }
-    }
+    // Get file metadata (size, mtime, mode, ctime)
+    FileMetadata metadata = getFileMetadata(filePath);
     
     // Fast check: If file is already in index with matching size/mtime, skip expensive hash
     const auto& existingEntries = index.entries();
     auto it = existingEntries.find(rel.generic_string());
     if (it != existingEntries.end()) {
         const auto& existing = it->second;
-        if (existing.sizeBytes == sizeBytes && existing.mtimeNs == mtimeNs && existing.mode == mode) {
+        if (existing.sizeBytes == metadata.sizeBytes && 
+            existing.mtimeNs == metadata.mtimeNs && 
+            existing.mode == metadata.mode) {
             // Fast path: File appears unchanged, no need to re-hash
             return {};
         }
@@ -89,17 +66,14 @@ static Expected<void> addFileToIndex(const fs::path& filePath, const fs::path& r
             return {};
         }
     }
-    
-    // Get ctime (creation/status change time) - approximate with mtime on most systems
-    uint64_t ctimeNs = mtimeNs; // Simplified: use mtime as ctime
 
     IndexEntry e;
     e.path = rel.generic_string();
     e.hashHex = hash;
-    e.sizeBytes = sizeBytes;
-    e.mtimeNs = mtimeNs;
-    e.mode = mode;
-    e.ctimeNs = ctimeNs;
+    e.sizeBytes = metadata.sizeBytes;
+    e.mtimeNs = metadata.mtimeNs;
+    e.mode = metadata.mode;
+    e.ctimeNs = metadata.ctimeNs;
     
     try {
         index.addOrUpdate(e);

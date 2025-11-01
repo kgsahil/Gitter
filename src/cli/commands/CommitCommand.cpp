@@ -12,6 +12,7 @@
 #include "core/ObjectStore.hpp"
 #include "core/TreeBuilder.hpp"
 #include "core/CommitObject.hpp"
+#include "util/FileMetadata.hpp"
 // Include concrete hasher to allow ObjectStore destructor instantiation
 #include "util/Sha1Hasher.hpp"
 
@@ -100,48 +101,23 @@ Expected<void> CommitCommand::execute(const AppContext&, const std::vector<std::
             }
             
             // Check if file is modified using fast size/mtime check
-            uint64_t sizeBytes = static_cast<uint64_t>(fs::file_size(p, ec));
-            if (ec) sizeBytes = 0;
+            FileMetadata metadata = getFileMetadata(p);
             
-            uint64_t mtimeNs = 0;
-            auto ft = fs::last_write_time(p, ec);
-            if (!ec) {
-                auto now_sys = std::chrono::system_clock::now();
-                auto now_file = fs::file_time_type::clock::now();
-                auto adj = ft - now_file + now_sys;
-                mtimeNs = static_cast<uint64_t>(std::chrono::duration_cast<std::chrono::nanoseconds>(adj.time_since_epoch()).count());
-            }
-            
-            bool sizeMatches = sizeBytes == kv.second.sizeBytes;
-            bool mtimeMatches = mtimeNs == kv.second.mtimeNs;
+            bool sizeMatches = metadata.sizeBytes == kv.second.sizeBytes;
+            bool mtimeMatches = metadata.mtimeNs == kv.second.mtimeNs;
             
             // If file is modified, re-stage it
             if (!sizeMatches || !mtimeMatches) {
                 try {
                     std::string hash = store.hashFileContent(p);
                     if (hash != kv.second.hashHex) {
-                        // Get file permissions (Git tracks mode)
-                        uint32_t mode = 0;
-                        auto status = fs::status(p, ec);
-                        if (!ec) {
-                            auto perms = status.permissions();
-                            // Git uses octal mode: 0100644 (regular file) or 0100755 (executable)
-                            if ((perms & fs::perms::owner_exec) != fs::perms::none ||
-                                (perms & fs::perms::group_exec) != fs::perms::none ||
-                                (perms & fs::perms::others_exec) != fs::perms::none) {
-                                mode = 0100755; // Executable
-                            } else {
-                                mode = 0100644; // Regular file
-                            }
-                        }
-                        
                         // Update index entry with new hash and metadata
                         IndexEntry newEntry = kv.second;
                         newEntry.hashHex = hash;
-                        newEntry.sizeBytes = sizeBytes;
-                        newEntry.mtimeNs = mtimeNs;
-                        newEntry.mode = mode;
-                        newEntry.ctimeNs = mtimeNs;
+                        newEntry.sizeBytes = metadata.sizeBytes;
+                        newEntry.mtimeNs = metadata.mtimeNs;
+                        newEntry.mode = metadata.mode;
+                        newEntry.ctimeNs = metadata.ctimeNs;
                         
                         index.addOrUpdate(newEntry);
                     }

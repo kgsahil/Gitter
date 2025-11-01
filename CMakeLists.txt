@@ -8,6 +8,7 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 
 option(GITTER_STRICT "Treat warnings as errors" OFF)
 option(GITTER_BUILD_TESTS "Build unit tests" ON)
+option(GITTER_ENABLE_COVERAGE "Enable code coverage" OFF)
 
 # GoogleTest via FetchContent (for tests)
 if(GITTER_BUILD_TESTS)
@@ -18,6 +19,17 @@ if(GITTER_BUILD_TESTS)
     GIT_TAG v1.14.0
   )
   FetchContent_MakeAvailable(googletest)
+endif()
+
+# Code coverage setup
+if(GITTER_ENABLE_COVERAGE)
+  if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
+    message(STATUS "Enabling code coverage")
+    add_compile_options(--coverage -fprofile-arcs -ftest-coverage)
+    add_link_options(--coverage)
+  else()
+    message(WARNING "Code coverage not supported for ${CMAKE_CXX_COMPILER_ID}")
+  endif()
 endif()
 
 # Platform-specific compile options
@@ -43,6 +55,7 @@ add_library(gitter_lib
   src/util/HasherFactory.cpp
   src/util/Sha1Hasher.cpp
   src/util/Sha256Hasher.cpp
+  src/util/FileMetadata.cpp
   src/cli/CommandFactory.cpp
   src/cli/CommandInvoker.cpp
   src/cli/commands/HelpCommand.cpp

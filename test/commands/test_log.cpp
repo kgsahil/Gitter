@@ -294,3 +294,141 @@ TEST_F(LogCommandTest, LogSpecialCharactersInMessage) {
     EXPECT_NE(output.find("Bug #123"), std::string::npos);
 }
 
+// Test: Log handles empty commit message
+TEST_F(LogCommandTest, LogEmptyCommitMessage) {
+    AddCommand addCmd;
+    CommitCommand commitCmd;
+    LogCommand logCmd;
+    
+    createFile(tempDir, "file.txt", "content");
+    addCmd.execute(ctx, {"file.txt"});
+    
+    // Commit with single empty message
+    commitCmd.execute(ctx, {"-m", ""});
+    
+    clearOutput();
+    logCmd.execute(ctx, {});
+    
+    std::string output = getOutput();
+    // Should still show the commit
+    EXPECT_NE(output.find("commit"), std::string::npos);
+}
+
+// Test: Log with very long commit messages
+TEST_F(LogCommandTest, LogLongCommitMessage) {
+    AddCommand addCmd;
+    CommitCommand commitCmd;
+    LogCommand logCmd;
+    
+    createFile(tempDir, "file.txt", "content");
+    addCmd.execute(ctx, {"file.txt"});
+    
+    // Create a long message
+    std::string longMsg;
+    for (int i = 0; i < 20; ++i) {
+        longMsg += "Line " + std::to_string(i) + "\n";
+    }
+    commitCmd.execute(ctx, {"-m", longMsg});
+    
+    clearOutput();
+    logCmd.execute(ctx, {});
+    
+    std::string output = getOutput();
+    // Should show the long message
+    EXPECT_NE(output.find("Line 0"), std::string::npos);
+    EXPECT_NE(output.find("Line 19"), std::string::npos);
+}
+
+// Test: Log shows timezone information
+TEST_F(LogCommandTest, LogShowsTimezone) {
+    AddCommand addCmd;
+    CommitCommand commitCmd;
+    LogCommand logCmd;
+    
+    createFile(tempDir, "file.txt", "content");
+    addCmd.execute(ctx, {"file.txt"});
+    commitCmd.execute(ctx, {"-m", "Test"});
+    
+    clearOutput();
+    logCmd.execute(ctx, {});
+    
+    std::string output = getOutput();
+    // Should have Date line with timezone
+    EXPECT_NE(output.find("Date:"), std::string::npos);
+}
+
+// Test: Log with exactly 10 commits
+TEST_F(LogCommandTest, LogExactly10Commits) {
+    AddCommand addCmd;
+    CommitCommand commitCmd;
+    LogCommand logCmd;
+    
+    // Create exactly 10 commits
+    for (int i = 0; i < 10; ++i) {
+        fs::path file = createFile(tempDir, "file" + std::to_string(i) + ".txt", 
+                                    "content" + std::to_string(i));
+        addCmd.execute(ctx, {file.filename().string()});
+        commitCmd.execute(ctx, {"-m", "Commit " + std::to_string(i)});
+    }
+    
+    clearOutput();
+    logCmd.execute(ctx, {});
+    
+    std::string output = getOutput();
+    // Count commits
+    size_t commitCount = 0;
+    size_t pos = 0;
+    while ((pos = output.find("commit ", pos)) != std::string::npos) {
+        commitCount++;
+        pos += 7;
+    }
+    EXPECT_EQ(commitCount, 10);
+}
+
+// Test: Log with commit containing only newlines
+TEST_F(LogCommandTest, LogCommitWithOnlyNewlines) {
+    AddCommand addCmd;
+    CommitCommand commitCmd;
+    LogCommand logCmd;
+    
+    createFile(tempDir, "file.txt", "content");
+    addCmd.execute(ctx, {"file.txt"});
+    
+    // Commit with only newlines
+    commitCmd.execute(ctx, {"-m", "\n\n\n"});
+    
+    clearOutput();
+    logCmd.execute(ctx, {});
+    
+    std::string output = getOutput();
+    // Should still show commit
+    EXPECT_NE(output.find("commit"), std::string::npos);
+}
+
+// Test: Log date formatting
+TEST_F(LogCommandTest, LogDateFormatting) {
+    AddCommand addCmd;
+    CommitCommand commitCmd;
+    LogCommand logCmd;
+    
+    createFile(tempDir, "file.txt", "content");
+    addCmd.execute(ctx, {"file.txt"});
+    commitCmd.execute(ctx, {"-m", "Test"});
+    
+    clearOutput();
+    logCmd.execute(ctx, {});
+    
+    std::string output = getOutput();
+    // Check for date format components
+    EXPECT_NE(output.find("Date:"), std::string::npos);
+    // Should have day of week and month
+    bool hasDayMonth = (output.find("Mon ") != std::string::npos ||
+                       output.find("Tue ") != std::string::npos ||
+                       output.find("Wed ") != std::string::npos ||
+                       output.find("Thu ") != std::string::npos ||
+                       output.find("Fri ") != std::string::npos ||
+                       output.find("Sat ") != std::string::npos ||
+                       output.find("Sun ") != std::string::npos);
+    EXPECT_TRUE(hasDayMonth);
+}
+

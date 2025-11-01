@@ -15,6 +15,7 @@
 #include "core/ObjectStore.hpp"
 #include "core/CommitObject.hpp"
 #include "core/TreeBuilder.hpp"
+#include "util/FileMetadata.hpp"
 // Include concrete hasher to allow ObjectStore destructor instantiation
 #include "util/Sha1Hasher.hpp"
 
@@ -216,17 +217,7 @@ Expected<void> StatusCommand::execute(const AppContext&, const std::vector<std::
         }
         
         // Fast check: size and mtime (Git's optimization - skip expensive hash if both match)
-        uint64_t sizeBytes = static_cast<uint64_t>(fs::file_size(p, ec));
-        if (ec) sizeBytes = 0;
-        
-        uint64_t mtimeNs = 0;
-        auto ft = fs::last_write_time(p, ec);
-        if (!ec) {
-            auto now_sys = std::chrono::system_clock::now();
-            auto now_file = fs::file_time_type::clock::now();
-            auto adj = ft - now_file + now_sys;
-            mtimeNs = static_cast<uint64_t>(std::chrono::duration_cast<std::chrono::nanoseconds>(adj.time_since_epoch()).count());
-        }
+        FileMetadata metadata = getFileMetadata(p);
         
         // Git's optimization: If size AND mtime match, assume unchanged (skip expensive hash)
         // This works because:
@@ -235,8 +226,8 @@ Expected<void> StatusCommand::execute(const AppContext&, const std::vector<std::
         // 3. If both match, file is almost certainly unchanged (very high probability)
         // 4. This optimization is crucial for performance with large repositories
         
-        bool sizeMatches = sizeBytes == e.sizeBytes;
-        bool mtimeMatches = mtimeNs == e.mtimeNs;
+        bool sizeMatches = metadata.sizeBytes == e.sizeBytes;
+        bool mtimeMatches = metadata.mtimeNs == e.mtimeNs;
         
         if (sizeMatches && mtimeMatches) {
             // Fast path: skip hash computation for performance

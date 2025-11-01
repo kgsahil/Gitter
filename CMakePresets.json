@@ -1,5 +1,5 @@
 {
-  "version": 5,
+  "version": 3,
   "cmakeMinimumRequired": { "major": 3, "minor": 20, "patch": 0 },
   "configurePresets": [
     {
@@ -79,6 +79,19 @@
         "GITTER_STRICT": "OFF",
         "GITTER_BUILD_TESTS": "ON"
       }
+    },
+    {
+      "name": "linux-coverage",
+      "displayName": "Linux Coverage",
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/build/linux-coverage",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug",
+        "CMAKE_CXX_STANDARD": "20",
+        "GITTER_STRICT": "OFF",
+        "GITTER_BUILD_TESTS": "ON",
+        "GITTER_ENABLE_COVERAGE": "ON"
+      }
     }
   ],
   "buildPresets": [
@@ -87,7 +100,8 @@
     { "name": "windows-debug-build", "configurePreset": "windows-debug" },
     { "name": "windows-release-build", "configurePreset": "windows-release" },
     { "name": "windows-ninja-debug-build", "configurePreset": "windows-ninja-debug" },
-    { "name": "windows-ninja-release-build", "configurePreset": "windows-ninja-release" }
+    { "name": "windows-ninja-release-build", "configurePreset": "windows-ninja-release" },
+    { "name": "linux-coverage-build", "configurePreset": "linux-coverage" }
   ]
 }
 

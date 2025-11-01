@@ -122,13 +122,9 @@ Expected<void> CheckoutCommand::execute(const AppContext&, const std::vector<std
     }
     auto [currentHash, currentBranchRef] = headRes.value();
     
-    if (currentHash.empty()) {
-        return Error{ErrorCode::InvalidArgs, "checkout: no commits yet"};
-    }
-    
     // Create branch
     if (createBranch) {
-        // Check if branch already exists
+        // Check if branch already exists by ref file
         auto existsRes = Repository::branchExists(root, branchName);
         if (!existsRes) {
             return Error{existsRes.error().code, existsRes.error().message};
@@ -139,7 +135,7 @@ Expected<void> CheckoutCommand::execute(const AppContext&, const std::vector<std
                 std::string("checkout: a branch named '") + branchName + "' already exists"};
         }
         
-        // Create new branch at current commit
+        // Create new branch at current commit (even if empty - matches Git behavior)
         auto createRes = Repository::createBranch(root, branchName, currentHash);
         if (!createRes) {
             return Error{createRes.error().code, createRes.error().message};
@@ -155,6 +151,10 @@ Expected<void> CheckoutCommand::execute(const AppContext&, const std::vector<std
         std::cout << "Switched to a new branch '" << branchName << "'\n";
         
     } else {
+        // Switching to existing branch - requires commits
+        if (currentHash.empty()) {
+            return Error{ErrorCode::InvalidArgs, "checkout: no commits yet"};
+        }
         // Switch to existing branch
         auto existsRes = Repository::branchExists(root, branchName);
         if (!existsRes) {
