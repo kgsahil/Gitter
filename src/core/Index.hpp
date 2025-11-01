@@ -33,10 +33,12 @@ struct IndexEntry {
  * in the next commit. Each entry tracks a file's path, blob hash, and metadata.
  * 
  * On-disk format (.gitter/index):
- *   TSV with one entry per line: path<TAB>hash<TAB>size<TAB>mtime<TAB>mode<TAB>ctime
- *   Example: "src/main.cpp<TAB>a3b2c1...<TAB>1024<TAB>1234567890000000000<TAB>33188<TAB>1234567890000000000"
+ *   TSV with one entry per line: base64path<TAB>hash<TAB>size<TAB>mtime<TAB>mode<TAB>ctime
+ *   Paths are base64-encoded to handle special characters (TAB, newline, etc.)
+ *   Example: "c3JjL21haW4uY3Bw<TAB>a3b2c1...<TAB>1024<TAB>1234567890000000000<TAB>33188<TAB>1234567890000000000"
  * 
  * This mimics Git's index (staging area) where files are prepared for commit.
+ * Base64 encoding allows tracking filenames with special characters just like Git.
  */
 class Index {
 public:

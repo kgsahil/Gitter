@@ -80,13 +80,14 @@ src/
   - **Cleanup**: Partial writes automatically removed on failure
   
 - **Index** - Staging area (Git index)
-  - TSV format: `path\thash\tsize\tmtime\tmode\tctime`
+  - TSV format: `base64path\thash\tsize\tmtime\tmode\tctime` (paths base64-encoded)
   - Tracks files staged for next commit
   - Fast dirty detection via size/mtime (Git optimization)
   - Stores file permissions (mode: 0100644, 0100755)
   - Tracks creation time (ctime)
   - **Atomic writes**: Uses temp file pattern to prevent corruption
   - **Path normalization**: Ensures consistent path representation
+  - **Base64 encoding**: Handles TAB/newline in filenames (Git-compatible)
   - **Input validation**: Validates hash format and numeric fields
   
 - **TreeBuilder** - Builds Git tree objects
@@ -298,13 +299,19 @@ CheckoutCommand:
      - Output: "Switched to a new branch 'feature'"
   5. If switching branch:
      - Check branchExists() for target
-     - Read branch commit: readBranchCommit()
-     - Read commit tree: ObjectStore.readCommit()
+     - Read target and current commit trees
+     - **Intelligent index merging**:
+       - Load current index (preserves staged files)
+       - Remove entries tracked in current commit but not in target
+       - Add entries from target branch if not already in index
+       - Preserves staged uncommitted files (Git-compatible)
      - Restore working tree: restoreTree()
        - Traverse tree entries recursively
        - For files: readBlob() and write to disk
        - For dirs: create directories
-     - Rebuild index from tree entries
+     - Remove files in current tree but not in target tree
+     - Remove empty directories recursively
+     - Save merged index
      - SwitchToBranch() updates HEAD
      - Output: "Switched to branch 'feature'"
   ↓
@@ -409,10 +416,11 @@ These have Git-specific knowledge and shouldn't move.
    - Switches to existing branches
    - Creates new branches with `-b` flag
    - Updates HEAD reference
+   - **Intelligent index merging**: Preserves staged uncommitted files across branches
    - **Working tree restoration**: Restores files from tree objects
    - **File cleanup**: Removes files not in target branch
    - **Directory cleanup**: Removes empty directories recursively
-   - Provides Git-compatible error messages
+   - Git-compatible staged file preservation
    - Implementation plan: `docs/CHECKOUT_IMPLEMENTATION_PLAN.md`
 
 ### Planned Additions

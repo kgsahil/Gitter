@@ -403,4 +403,89 @@ TEST_F(AddCommandTest, AddGitterDirectory) {
     EXPECT_TRUE(index.entries().empty());
 }
 
+// Test: Add file with TAB characters in name
+TEST_F(AddCommandTest, AddFileWithTabsInName) {
+    AddCommand cmd;
+    
+    // Create file with TAB characters (like Git supports)
+    std::string tabFile = std::string("file") + '\t' + "with" + '\t' + "tabs.txt";
+    fs::path filePath = tempDir / tabFile;
+    
+    // Write file content
+    std::ofstream out(filePath);
+    out << "content with tabs in name";
+    out.close();
+    
+    std::vector<std::string> args{tabFile};
+    auto result = cmd.execute(ctx, args);
+    ASSERT_TRUE(result.has_value()) << result.error().message;
+    
+    // Verify file added to index
+    Index index;
+    index.load(tempDir);
+    const auto& entries = index.entries();
+    EXPECT_EQ(entries.size(), 1);
+    EXPECT_TRUE(entries.find(tabFile) != entries.end());
+}
+
+// Test: Add file with newline characters in name
+TEST_F(AddCommandTest, AddFileWithNewlinesInName) {
+    AddCommand cmd;
+    
+    // Create file with newline characters (like Git supports)
+    std::string nlFile = std::string("file") + '\n' + "with" + '\n' + "newlines.txt";
+    fs::path filePath = tempDir / nlFile;
+    
+    // Write file content
+    std::ofstream out(filePath);
+    out << "content with newlines in name";
+    out.close();
+    
+    std::vector<std::string> args{nlFile};
+    auto result = cmd.execute(ctx, args);
+    ASSERT_TRUE(result.has_value()) << result.error().message;
+    
+    // Verify file added to index
+    Index index;
+    index.load(tempDir);
+    const auto& entries = index.entries();
+    EXPECT_EQ(entries.size(), 1);
+    EXPECT_TRUE(entries.find(nlFile) != entries.end());
+}
+
+// Test: Index round-trip with special characters
+TEST_F(AddCommandTest, IndexRoundTripSpecialCharacters) {
+    AddCommand cmd;
+    
+    // Create file with TAB characters
+    std::string specialFile = std::string("special") + '\t' + "file" + '\t' + "name.txt";
+    fs::path filePath = tempDir / specialFile;
+    createFile(tempDir, specialFile, "special content");
+    
+    // Add file
+    auto result = cmd.execute(ctx, {specialFile});
+    ASSERT_TRUE(result.has_value()) << result.error().message;
+    
+    // Get hash from index
+    Index index;
+    index.load(tempDir);
+    const auto& entries = index.entries();
+    ASSERT_TRUE(entries.find(specialFile) != entries.end());
+    std::string hash1 = entries.at(specialFile).hashHex;
+    
+    // Save index
+    ASSERT_TRUE(index.save(tempDir));
+    
+    // Load index again
+    Index index2;
+    ASSERT_TRUE(index2.load(tempDir));
+    
+    // Verify entry preserved correctly
+    const auto& entries2 = index2.entries();
+    EXPECT_EQ(entries2.size(), 1);
+    ASSERT_TRUE(entries2.find(specialFile) != entries2.end());
+    std::string hash2 = entries2.at(specialFile).hashHex;
+    EXPECT_EQ(hash1, hash2);
+}
+
 

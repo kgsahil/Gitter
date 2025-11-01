@@ -6,6 +6,7 @@
 #include <string>
 #include <algorithm>
 #include <cctype>
+#include <vector>
 #include "core/Constants.hpp"
 
 namespace fs = std::filesystem;
@@ -13,6 +14,70 @@ namespace fs = std::filesystem;
 namespace gitter {
 
 static fs::path indexPathOf(const fs::path& root) { return root / ".gitter" / "index"; }
+
+/**
+ * @brief Base64 encode for path to handle special characters (TAB/newlines)
+ * 
+ * Git stores special characters directly in binary index, but our TSV format
+ * can't handle TAB/newline separators. We base64-encode paths to support
+ * any filename that Git supports, including those with TAB, newline, etc.
+ * 
+ * This matches Git's ability to track files with any valid filename.
+ */
+static std::string base64Encode(const std::string& input) {
+    const char chars[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+    std::string encoded;
+    int val = 0, valb = -6;
+    
+    for (unsigned char c : input) {
+        val = (val << 8) + c;
+        valb += 8;
+        while (valb >= 0) {
+            encoded.push_back(chars[(val >> valb) & 0x3F]);
+            valb -= 6;
+        }
+    }
+    
+    if (valb > -6) {
+        encoded.push_back(chars[((val << 8) >> (valb + 8)) & 0x3F]);
+    }
+    
+    while (encoded.size() % 4) {
+        encoded.push_back('=');
+    }
+    
+    return encoded;
+}
+
+/**
+ * @brief Base64 decode path
+ */
+static std::string base64Decode(const std::string& input) {
+    const unsigned char chars[] = 
+        "\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff"
+        "\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff"
+        "\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\x3e\xff\xff\xff\x3f"
+        "\x34\x35\x36\x37\x38\x39\x3a\x3b\x3c\x3d\xff\xff\xff\xff\xff\xff"
+        "\xff\x00\x01\x02\x03\x04\x05\x06\x07\x08\x09\x0a\x0b\x0c\x0d\x0e"
+        "\x0f\x10\x11\x12\x13\x14\x15\x16\x17\x18\x19\xff\xff\xff\xff\xff"
+        "\xff\x1a\x1b\x1c\x1d\x1e\x1f\x20\x21\x22\x23\x24\x25\x26\x27\x28"
+        "\x29\x2a\x2b\x2c\x2d\x2e\x2f\x30\x31\x32\x33\xff\xff\xff\xff\xff";
+    
+    std::string decoded;
+    int val = 0, valb = -8;
+    
+    for (unsigned char c : input) {
+        if (chars[c] == 0xff) continue;
+        val = (val << 6) + chars[c];
+        valb += 6;
+        if (valb >= 0) {
+            decoded.push_back(static_cast<char>((val >> valb) & 0xFF));
+            valb -= 8;
+        }
+    }
+    
+    return decoded;
+}
 
 /**
  * @brief Normalize path for consistent storage in index
@@ -55,15 +120,25 @@ bool Index::load(const fs::path& repoRoot) {
         if (!line.empty() && line.back() == '\r') line.pop_back();
         if (line.empty()) continue;
         
-        // TSV: path\thash\tsize\tmtime\tmode\tctime
+        // TSV: base64path\thash\tsize\tmtime\tmode\tctime
+        // Path is base64-encoded to handle TAB/newline characters
         std::istringstream iss(line);
-        std::string path, hash, sizeStr, mtimeStr, modeStr, ctimeStr;
-        if (!std::getline(iss, path, '\t')) continue;
+        std::string encodedPath, hash, sizeStr, mtimeStr, modeStr, ctimeStr;
+        if (!std::getline(iss, encodedPath, '\t')) continue;
         std::getline(iss, hash, '\t');
         std::getline(iss, sizeStr, '\t');
         std::getline(iss, mtimeStr, '\t');
         std::getline(iss, modeStr, '\t');
         std::getline(iss, ctimeStr, '\t');
+        
+        // Decode path from base64
+        std::string path;
+        try {
+            path = base64Decode(encodedPath);
+        } catch (const std::exception&) {
+            // Skip invalid base64 entries
+            continue;
+        }
         
         // Validate hash format
         if (!isValidHash(hash)) {
@@ -117,10 +192,11 @@ bool Index::save(const fs::path& repoRoot) const {
         return false;
     }
     
-    // Write all entries
+    // Write all entries (paths base64-encoded to handle TAB/newlines)
     for (const auto& kv : pathToEntry) {
         const auto& e = kv.second;
-        out << e.path << '\t' << e.hashHex << '\t' << e.sizeBytes << '\t' 
+        std::string encodedPath = base64Encode(e.path);
+        out << encodedPath << '\t' << e.hashHex << '\t' << e.sizeBytes << '\t' 
             << e.mtimeNs << '\t' << e.mode << '\t' << e.ctimeNs << '\n';
     }
     

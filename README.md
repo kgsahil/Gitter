@@ -225,7 +225,7 @@ gitter checkout -b new-branch
 gitter checkout main
 ```
 
-**Note:** Checkout fully restores the working tree from the target branch's commit, including all files and subdirectories, and rebuilds the index to match.
+**Note:** Checkout intelligently merges the index to preserve staged uncommitted files across branch switches (Git-compatible), restores the working tree from the target branch's commit, and removes files not in the target branch.
 
 ### Inspect Objects
 
@@ -320,10 +320,16 @@ gitter cat-file -s abc123...
    - Output: "Switched to a new branch '<branch-name>'"
 4. **Branch Switching**:
    - Check if branch exists
-   - Read target branch's commit hash
-   - Read commit's tree object
+   - Read target and current branch commit hashes
+   - Read both commits' tree objects
+   - **Intelligent Index Merging**:
+     - Preserve staged uncommitted files in index
+     - Remove entries tracked in current commit but not in target
+     - Add entries from target branch if not already in index
+     - Git-compatible staged file preservation
    - **Restore Working Tree**: Recursively traverse tree and restore all files
-   - **Rebuild Index**: Update index to match branch state
+   - **Remove Files**: Delete files in current tree but not in target tree
+   - **Clean Directories**: Remove empty directories recursively
    - Update `.gitter/HEAD` to point to branch
    - Output: "Switched to branch '<branch-name>'"
 5. **Error Handling**: Validate arguments, branch existence, and commits
@@ -459,8 +465,9 @@ gitter status  # Reset files should be untracked
 - **Duplicate commit prevention**
 - **Silent commit output (Git-like)**
 - **Reset command with HEAD~n syntax**
-- **Checkout command with working tree restoration**
+- **Checkout command with intelligent index merging (Git-compatible staged file preservation)**
 - **Branch management (create/switch branches)**
+- **Working tree restoration and file/directory cleanup**
 - Status detection (staged/modified/untracked) with Git optimization
 - Unstaging with patterns
 - Git-compliant blob/tree/commit object storage
@@ -484,14 +491,14 @@ gitter status  # Reset files should be untracked
 The code is well-documented with Doxygen-style comments and comprehensive guides:
 
 - **[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)** - Overall project architecture and design patterns
+- **[docs/HASHER_DESIGN.md](docs/HASHER_DESIGN.md)** - Hasher architecture (strategy pattern, Git compatibility, object storage)
 - **[docs/COMMIT_IMPLEMENTATION.md](docs/COMMIT_IMPLEMENTATION.md)** - Commit creation with trees and objects
 - **[docs/LOG_IMPLEMENTATION.md](docs/LOG_IMPLEMENTATION.md)** - Commit history display and parsing
 - **[docs/RESET_IMPLEMENTATION.md](docs/RESET_IMPLEMENTATION.md)** - Reset command to undo commits
+- **[docs/CHECKOUT_IMPLEMENTATION_PLAN.md](docs/CHECKOUT_IMPLEMENTATION_PLAN.md)** - Checkout command implementation with intelligent index merging
 - **[docs/STATUS_FIX.md](docs/STATUS_FIX.md)** - Status command three-way comparison fix
-- **[docs/HASHER_ARCHITECTURE.md](docs/HASHER_ARCHITECTURE.md)** - Strategy Pattern for hash algorithms
-- **[docs/SHA1_STRATEGY_PATTERN.md](docs/SHA1_STRATEGY_PATTERN.md)** - Git-compliant object storage details
-- **[docs/REFACTORING_SUMMARY.md](docs/REFACTORING_SUMMARY.md)** - Recent hasher refactoring changes
 - **[docs/TREE_STORAGE.md](docs/TREE_STORAGE.md)** - How Git stores directory trees
+- **[docs/COVERAGE.md](docs/COVERAGE.md)** - Code coverage analysis and test statistics
 
 Code Documentation:
 - Class-level documentation explains purpose and usage

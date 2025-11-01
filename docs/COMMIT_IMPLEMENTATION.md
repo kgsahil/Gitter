@@ -437,16 +437,21 @@ Path: .gitter/objects/12/3abc...
 
 **Reason:** Prevents too many files in single directory, improving filesystem performance.
 
-## Future Enhancements
-
-### Multiple -m Flags
+## Multiple -m Flags ✅ IMPLEMENTED
 
 Git supports multiple `-m` flags:
 ```bash
 git commit -m "Title" -m "Body paragraph 1" -m "Body paragraph 2"
 ```
 
-Each becomes a separate paragraph.
+Each becomes a separate paragraph separated by blank lines.
+
+**Implementation:**
+- Each `-m` flag appends to commit message
+- Blank line inserted between paragraphs
+- Final newline automatically added
+
+## Future Enhancements
 
 ### Amend Previous Commit
 
@@ -486,6 +491,7 @@ The commit implementation:
 ✅ **Auto-stages with -a flag** - tracks modified files automatically  
 ✅ **Prevents duplicate commits** - compares tree hashes before creating  
 ✅ **Silent operation** - no output on success (Git-like)  
+✅ **Multiple -m flags** - supports multi-paragraph commit messages  
 
 The implementation is fully functional and Git-compatible! 🎉
 

@@ -4,19 +4,19 @@ This directory contains archived documentation from past refactorings and implem
 
 ## Archived Documents
 
-- **HASHER_ARCHITECTURE.md** - Original detailed hasher documentation (superseded by `docs/HASHER_DESIGN.md`)
-- **SHA1_STRATEGY_PATTERN.md** - Original strategy pattern documentation (superseded by `docs/HASHER_DESIGN.md`)
-- **REFACTORING_SUMMARY.md** - Hasher refactoring summary (superseded by `docs/HASHER_DESIGN.md`)
-- **STATUS_FIX.md** - Status command three-way comparison fix (historical)
-- **REFACTORING_HEAD_MANAGEMENT.md** - HEAD management centralization refactoring (historical)
-
-These documents are kept for historical reference but have been consolidated into newer, more concise documentation.
+All historical documentation has been consolidated into current active documentation files.
 
 ## Current Active Documentation
 
 See the main `docs/` directory for active documentation:
-- `docs/HASHER_DESIGN.md` - Current hasher design (consolidated)
-- `docs/ARCHITECTURE.md` - Overall architecture
-- `docs/COVERAGE.md` - Test coverage
-- Implementation plans for in-progress work
+- `docs/ARCHITECTURE.md` - Overall project architecture and design patterns
+- `docs/HASHER_DESIGN.md` - Consolidated hasher architecture (strategy pattern, Git compatibility)
+- `docs/COMMIT_IMPLEMENTATION.md` - Commit creation and tree building
+- `docs/LOG_IMPLEMENTATION.md` - Commit history display
+- `docs/RESET_IMPLEMENTATION.md` - Reset command
+- `docs/CHECKOUT_IMPLEMENTATION_PLAN.md` - Checkout command implementation
+- `docs/TREE_STORAGE.md` - Tree object storage
+- `docs/STATUS_FIX.md` - Status command three-way comparison implementation
+- `docs/REFACTORING_HEAD_MANAGEMENT.md` - HEAD management refactoring
+- `docs/COVERAGE.md` - Test coverage analysis
 

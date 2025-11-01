@@ -4,6 +4,35 @@ All notable changes to the Gitter project will be documented in this file.
 
 ## [Unreleased]
 
+### Fixed - Special Characters in Filenames (2025-11-02)
+
+#### Git-Compatibility Feature
+- **Base64 Path Encoding**: Index now base64-encodes file paths to handle special characters
+- **TAB Support**: Files with TAB characters in names now work correctly (e.g., `file\twith\ttabs.txt`)
+- **Newline Support**: Files with newline characters in names now work correctly
+- **Round-trip Integrity**: Special character filenames preserved through save/load cycle
+- **Git-Compatible**: Matches Git's ability to track files with any valid filename
+
+#### Implementation Details
+- Added `base64Encode()` and `base64Decode()` helper functions to `Index.cpp`
+- Updated `Index::load()` to decode base64 paths
+- Updated `Index::save()` to encode base64 paths
+- Automatic backward compatibility: old index files still work (treated as plaintext paths)
+- Base64 encoding prevents index corruption from TAB/newline characters
+
+#### Testing
+- Added `AddFileWithTabsInName` - Verify TAB characters in filename
+- Added `AddFileWithNewlinesInName` - Verify newline characters in filename
+- Added `IndexRoundTripSpecialCharacters` - Verify save/load integrity
+- Total test count: 205 tests (up from 202)
+- All tests verify Git-compatible behavior with special characters
+
+#### Files Modified
+- `src/core/Index.cpp` - Added base64 encoding/decoding for paths
+- `src/core/Index.hpp` - Updated documentation for base64 format
+- `test/commands/test_add.cpp` - Added 3 new tests for special characters
+- `docs/ARCHITECTURE.md` - Updated Index documentation
+
 ### Fixed - Checkout Bug: File Preservation on Branch Switch (2025-01-02)
 
 #### Bug Fix

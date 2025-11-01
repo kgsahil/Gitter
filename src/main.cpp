@@ -17,7 +17,6 @@
 #include "cli/commands/RestoreCommand.hpp"
 #include "cli/commands/CatFileCommand.hpp"
 #include "cli/commands/ResetCommand.hpp"
-#include "util/Logger.hpp"
 
 using namespace gitter;
 
