@@ -97,6 +97,7 @@ if(GITTER_BUILD_TESTS)
     test/commands/test_log.cpp
     test/commands/test_restore.cpp
     test/commands/test_reset.cpp
+    test/commands/test_checkout.cpp
     test/core/test_repository.cpp
     test/core/test_index.cpp
     test/core/test_objectstore.cpp

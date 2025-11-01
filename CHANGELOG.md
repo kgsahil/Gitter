@@ -4,6 +4,68 @@ All notable changes to the Gitter project will be documented in this file.
 
 ## [Unreleased]
 
+### Added - Checkout Command for Branch Management (2025-01-02)
+
+#### Branch Switching and Creation
+- **Checkout Command** (`gitter checkout`)
+  - Switch to existing branch: `gitter checkout <branch-name>`
+  - Create and switch to new branch: `gitter checkout -b <branch-name>`
+  - Provides appropriate success/error messages matching Git
+
+#### Repository Enhancements
+- **Branch Management Methods**: Added five new static methods to Repository
+  - `branchExists()` - Check if a branch exists
+  - `listBranches()` - List all branch names
+  - `getCurrentBranch()` - Get current branch name
+  - `createBranch()` - Create new branch reference
+  - `switchToBranch()` - Switch HEAD to a branch
+
+#### Error Handling
+- Branch doesn't exist: `checkout: '<branch-name>' does not exist`
+- Branch already exists: `checkout: a branch named '<branch-name>' already exists`
+- No commits yet: `checkout: no commits yet`
+- No arguments: `checkout: branch name required`
+
+#### Testing
+- Comprehensive unit tests for checkout command
+- Integration tests for branching workflows
+- Tests for multiple branches, switching, and creation
+
+#### Files Added/Modified
+- `src/core/Repository.hpp/cpp` - Added branch management methods
+- `src/cli/commands/CheckoutCommand.cpp` - Full implementation
+- `src/cli/commands/CheckoutCommand.hpp` - Updated interface
+- `test/commands/test_checkout.cpp` (new) - Unit tests
+- `test/integration/test_git_workflow.cpp` - Branching workflow tests
+- `docs/CHECKOUT_IMPLEMENTATION_PLAN.md` (new) - Implementation plan
+
+### Enhanced - Checkout Command Phase 2: Working Tree Restoration (2025-01-02)
+
+#### Full Working Tree Restoration
+- **Tree Reading**: Added `readTree()` to ObjectStore to parse Git tree objects
+- **Blob Reading**: Added `readBlob()` to ObjectStore to parse Git blob objects
+- **Recursive Restoration**: Implemented `restoreTree()` helper to recursively restore files and directories
+- **Index Rebuilding**: Index is now rebuilt to match the checked-out branch state
+- **Directory Creation**: Automatically creates all necessary subdirectories
+
+#### Implementation Details
+- When switching branches, reads target branch's commit
+- Traverses commit's tree structure recursively
+- Restores all files from blob objects to working directory
+- Updates index with restored files and metadata
+- Maintains file permissions and timestamps
+
+#### Remaining Limitations
+- No conflict detection for uncommitted changes
+- No automatic removal of untracked files not in target branch
+- No detached HEAD support
+
+#### Files Modified
+- `src/core/ObjectStore.hpp/cpp` - Added `readTree()` and `readBlob()` methods
+- `src/cli/commands/CheckoutCommand.cpp` - Added tree restoration logic
+- `docs/CHECKOUT_IMPLEMENTATION_PLAN.md` - Marked Phase 2 as complete
+- `docs/ARCHITECTURE.md` - Updated checkout flow diagram
+
 ### Added - Multiple -m Flag Support for Commit Messages (2025-01-02)
 
 #### Multi-Paragraph Commit Messages

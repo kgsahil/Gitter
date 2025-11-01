@@ -1,6 +1,7 @@
 #include "core/Repository.hpp"
 
 #include <fstream>
+#include <vector>
 
 namespace fs = std::filesystem;
 
@@ -141,6 +142,124 @@ Expected<void> Repository::updateHEAD(const fs::path& root, const std::string& c
     }
     
     return {};
+}
+
+Expected<bool> Repository::branchExists(const fs::path& root, const std::string& branchName) {
+    fs::path refPath = root / ".gitter" / "refs" / "heads" / branchName;
+    std::error_code ec;
+    bool exists = fs::exists(refPath, ec) && fs::is_regular_file(refPath, ec);
+    return exists;
+}
+
+Expected<std::vector<std::string>> Repository::listBranches(const fs::path& root) {
+    fs::path headsDir = root / ".gitter" / "refs" / "heads";
+    std::vector<std::string> branches;
+    
+    if (!fs::exists(headsDir)) {
+        return branches;  // Empty list if directory doesn't exist
+    }
+    
+    std::error_code ec;
+    for (const auto& entry : fs::directory_iterator(headsDir, ec)) {
+        if (entry.is_regular_file()) {
+            branches.push_back(entry.path().filename().string());
+        }
+    }
+    
+    if (ec) {
+        return Error{ErrorCode::IoError, "Failed to read branches directory: " + ec.message()};
+    }
+    
+    return branches;
+}
+
+Expected<std::string> Repository::getCurrentBranch(const fs::path& root) {
+    fs::path headPath = root / ".gitter" / "HEAD";
+    if (!fs::exists(headPath)) {
+        return Error{ErrorCode::InvalidArgs, "No HEAD file"};
+    }
+    
+    std::ifstream headFile(headPath);
+    if (!headFile) {
+        return Error{ErrorCode::IoError, "Failed to read HEAD file"};
+    }
+    std::string headContent;
+    std::getline(headFile, headContent);
+    headFile.close();
+    
+    if (headContent.rfind("ref: ", 0) == 0) {
+        // Extract branch name from ref path (e.g., "ref: refs/heads/main" -> "main")
+        std::string refPath = headContent.substr(5);
+        fs::path ref(refPath);
+        return ref.filename().string();
+    }
+    
+    // Detached HEAD - no branch name
+    return std::string();
+}
+
+Expected<void> Repository::createBranch(const fs::path& root, const std::string& branchName, const std::string& commitHash) {
+    fs::path refFile = root / ".gitter" / "refs" / "heads" / branchName;
+    
+    // Create parent directories if needed
+    std::error_code ec;
+    fs::create_directories(refFile.parent_path(), ec);
+    if (ec) {
+        return Error{ErrorCode::IoError, "Failed to create branch directory: " + ec.message()};
+    }
+    
+    // Write commit hash to branch ref file
+    std::ofstream rf(refFile, std::ios::binary);
+    if (!rf) {
+        return Error{ErrorCode::IoError, "Failed to create branch reference"};
+    }
+    rf << commitHash << "\n";
+    rf.flush();
+    if (!rf || !rf.good()) {
+        return Error{ErrorCode::IoError, "Failed to write branch reference"};
+    }
+    
+    return {};
+}
+
+Expected<void> Repository::switchToBranch(const fs::path& root, const std::string& branchName) {
+    fs::path headPath = root / ".gitter" / "HEAD";
+    
+    // Update HEAD to point to the branch
+    std::ofstream headFile(headPath, std::ios::binary);
+    if (!headFile) {
+        return Error{ErrorCode::IoError, "Failed to update HEAD"};
+    }
+    headFile << "ref: refs/heads/" << branchName << "\n";
+    headFile.flush();
+    if (!headFile || !headFile.good()) {
+        return Error{ErrorCode::IoError, "Failed to write HEAD"};
+    }
+    
+    return {};
+}
+
+Expected<std::string> Repository::getBranchCommit(const fs::path& root, const std::string& branchName) {
+    fs::path refPath = root / ".gitter" / "refs" / "heads" / branchName;
+    
+    if (!fs::exists(refPath)) {
+        return std::string();
+    }
+    
+    std::ifstream refFile(refPath);
+    if (!refFile) {
+        return Error{ErrorCode::IoError, "Failed to read branch reference"};
+    }
+    
+    std::string hash;
+    std::getline(refFile, hash);
+    
+    // Remove any trailing whitespace
+    while (!hash.empty() && std::isspace(static_cast<unsigned char>(hash.back()))) {
+        hash.pop_back();
+    }
+    
+    return hash;
 }
 
 }

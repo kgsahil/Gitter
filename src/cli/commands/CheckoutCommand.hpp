@@ -10,10 +10,10 @@ public:
     const char* name() const override { return "checkout"; }
     const char* description() const override { return "Switch branches"; }
     const char* helpNameLine() const override { return "checkout -  Switch branches or restore working tree files"; }
-    const char* helpSynopsis() const override { return "gitter checkout <branch> [--force]"; }
-    const char* helpDescription() const override { return "Switch to the specified branch and update the working tree."; }
+    const char* helpSynopsis() const override { return "gitter checkout <branch-name> [-b]"; }
+    const char* helpDescription() const override { return "Switch to the specified branch or create a new branch with -b."; }
     std::vector<std::pair<std::string, std::string>> helpOptions() const override {
-        return { {"--force", "Proceed even if the working tree has uncommitted changes."} };
+        return { {"-b <branch-name>", "Create a new branch and switch to it."} };
     }
 };
 

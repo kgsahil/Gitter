@@ -17,7 +17,7 @@ src/
 │       ├── StatusCommand.*  # ✅ Fully implemented (with three-way comparison)
 │       ├── RestoreCommand.* # ✅ Fully implemented (with glob patterns)
 │       ├── ResetCommand.*   # ✅ Fully implemented (with HEAD~n syntax)
-│       └── CheckoutCommand.* (stub)
+│       └── CheckoutCommand.* # ✅ Fully implemented (branch switching and creation)
 │
 ├── core/                     # Git core logic
 │   ├── Repository.*         # Repository management (Singleton)
@@ -75,7 +75,7 @@ src/
   - Writes blobs/trees/commits to `.gitter/objects/<aa>/<bbb...>`
   - Uses SHA-1 hasher (Git default) with SHA-256 support
   - Compresses objects with zlib
-  - Parses commit objects via `readCommit()`
+  - **Parsing**: `readCommit()`, `readTree()`, `readBlob()` for all object types
   - **Error checking**: All file writes verified for success
   - **Cleanup**: Partial writes automatically removed on failure
   
@@ -283,6 +283,34 @@ ResetCommand:
 Silent success (no output, Git-like)
 ```
 
+### Checkout Command Flow
+```
+User: gitter checkout feature
+  ↓
+CheckoutCommand:
+  1. Parse arguments (-b flag and branch name)
+  2. Repository.discoverRoot() finds .gitter/
+  3. Resolve HEAD to get current commit hash
+  4. If creating branch (-b):
+     - Check branchExists() for conflicts
+     - Create branch reference at current commit
+     - SwitchToBranch() updates HEAD
+     - Output: "Switched to a new branch 'feature'"
+  5. If switching branch:
+     - Check branchExists() for target
+     - Read branch commit: readBranchCommit()
+     - Read commit tree: ObjectStore.readCommit()
+     - Restore working tree: restoreTree()
+       - Traverse tree entries recursively
+       - For files: readBlob() and write to disk
+       - For dirs: create directories
+     - Rebuild index from tree entries
+     - SwitchToBranch() updates HEAD
+     - Output: "Switched to branch 'feature'"
+  ↓
+Success with message
+```
+
 ## Key Principles
 
 ### 1. **Separation of Concerns**
@@ -377,22 +405,24 @@ These have Git-specific knowledge and shouldn't move.
    - Clears index leaving changes unindexed
    - Traverses parent commit chain
 
+5. ✅ **CheckoutCommand** (cli layer)
+   - Switches to existing branches
+   - Creates new branches with `-b` flag
+   - Updates HEAD reference
+   - Provides Git-compatible error messages
+   - Implementation plan: `docs/CHECKOUT_IMPLEMENTATION_PLAN.md`
+
 ### Planned Additions
 
-1. **RefManager** (core layer)
-   - Manages `HEAD` and branch refs
-   - Resolves symbolic refs
-   - Branch creation/deletion
-
-2. **DiffEngine** (core layer)
+1. **DiffEngine** (core layer)
    - Compares trees/commits
    - Generates patch format output
    - Shows file-level diffs
 
-3. **CheckoutCommand** (cli layer)
-   - Switch branches
-   - Restore working tree from commit
-   - Update HEAD reference
+2. **Working Tree Restoration**
+   - Restore files from tree objects
+   - Handle directories and nested structures
+   - Clean up files not in branch
 
 ### Extensibility Points
 

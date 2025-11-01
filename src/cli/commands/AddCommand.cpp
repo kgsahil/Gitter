@@ -34,13 +34,7 @@ static Expected<void> addFileToIndex(const fs::path& filePath, const fs::path& r
     fs::path rel = fs::relative(filePath, root, ec);
     if (ec) rel = filePath;
 
-    std::string hash;
-    try {
-        hash = store.writeBlobFromFile(filePath);
-    } catch (const std::exception& e) {
-        return Error{ErrorCode::IoError, std::string("Failed to write blob: ") + e.what()};
-    }
-
+    // Get file metadata for fast check
     uint64_t sizeBytes = static_cast<uint64_t>(fs::file_size(filePath, ec));
     if (ec) sizeBytes = 0;
     uint64_t mtimeNs = 0;
@@ -65,6 +59,34 @@ static Expected<void> addFileToIndex(const fs::path& filePath, const fs::path& r
             mode = 0100755; // Executable
         } else {
             mode = 0100644; // Regular file
+        }
+    }
+    
+    // Fast check: If file is already in index with matching size/mtime, skip expensive hash
+    const auto& existingEntries = index.entries();
+    auto it = existingEntries.find(rel.generic_string());
+    if (it != existingEntries.end()) {
+        const auto& existing = it->second;
+        if (existing.sizeBytes == sizeBytes && existing.mtimeNs == mtimeNs && existing.mode == mode) {
+            // Fast path: File appears unchanged, no need to re-hash
+            return {};
+        }
+    }
+
+    // Slow path: Compute hash and update index
+    std::string hash;
+    try {
+        hash = store.writeBlobFromFile(filePath);
+    } catch (const std::exception& e) {
+        return Error{ErrorCode::IoError, std::string("Failed to write blob: ") + e.what()};
+    }
+    
+    // Check if hash matches existing (file content hasn't changed)
+    if (it != existingEntries.end()) {
+        const auto& existing = it->second;
+        if (existing.hashHex == hash) {
+            // File content hasn't changed, no need to update index
+            return {};
         }
     }
     

@@ -3,11 +3,13 @@
 #include <filesystem>
 #include <memory>
 #include <string>
+#include <vector>
 
 namespace gitter {
 
 class IHasher;
 struct CommitObject;
+struct TreeEntry;
 
 /**
  * @brief Git object storage manager
@@ -106,12 +108,28 @@ public:
     std::string readObject(const std::string& hash);
     
     /**
+     * @brief Read and parse blob object from storage
+     * @param hash Blob hash (hex)
+     * @return Blob content (without header)
+     * @throws std::runtime_error if blob not found or parse error
+     */
+    std::string readBlob(const std::string& hash);
+    
+    /**
      * @brief Parse a commit object from storage
      * @param hash Commit hash (hex)
      * @return Parsed CommitObject structure
      * @throws std::runtime_error if commit not found or parse error
      */
     CommitObject readCommit(const std::string& hash);
+    
+    /**
+     * @brief Parse a tree object from storage
+     * @param hash Tree hash (hex)
+     * @return Vector of TreeEntry structures
+     * @throws std::runtime_error if tree not found or parse error
+     */
+    std::vector<TreeEntry> readTree(const std::string& hash);
     
     /**
      * @brief Get path for object: .gitter/objects/<aa>/<bbbb...>

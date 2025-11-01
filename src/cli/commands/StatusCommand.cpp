@@ -1,13 +1,14 @@
 #include "cli/commands/StatusCommand.hpp"
 
+#include <chrono>
 #include <filesystem>
 #include <fstream>
+#include <functional>
 #include <iostream>
 #include <string>
 #include <unordered_map>
 #include <unordered_set>
 #include <vector>
-#include <chrono>
 
 #include "core/Repository.hpp"
 #include "core/Index.hpp"
@@ -149,16 +150,43 @@ Expected<void> StatusCommand::execute(const AppContext&, const std::vector<std::
     // Find changes to be committed (index vs HEAD)
     std::vector<std::string> staged;
     if (hasCommits) {
-        // If trees differ, there are staged changes
         try {
-            std::string indexTreeHash = TreeBuilder::buildFromIndex(index, store);
+            // Build map of HEAD tree contents for comparison
             CommitObject commit = store.readCommit(currentCommitHash);
+            std::unordered_map<std::string, std::string> headTree;  // path -> hash
             
-            if (indexTreeHash != commit.treeHash) {
-                // Trees differ - show all index entries as staged
-                for (const auto& kv : indexEntries) {
-                    staged.push_back(kv.second.path);
+            // Helper to recursively read tree and build map
+            std::function<void(const std::string&, const std::string&)> readTreeRecursive = 
+                [&](const std::string& treeHash, const std::string& basePath) {
+                    if (treeHash.empty()) return;
+                    
+                    std::vector<TreeEntry> entries = store.readTree(treeHash);
+                    for (const auto& entry : entries) {
+                        std::string fullPath = basePath.empty() ? entry.name : basePath + "/" + entry.name;
+                        if (entry.isTree) {
+                            readTreeRecursive(entry.hashHex, fullPath);
+                        } else {
+                            headTree[fullPath] = entry.hashHex;
+                        }
+                    }
+                };
+            
+            // Read HEAD tree recursively
+            readTreeRecursive(commit.treeHash, "");
+            
+            // Compare index with HEAD to find staged changes
+            for (const auto& kv : indexEntries) {
+                const auto& indexEntry = kv.second;
+                auto it = headTree.find(indexEntry.path);
+                
+                if (it == headTree.end()) {
+                    // File not in HEAD - newly added
+                    staged.push_back(indexEntry.path);
+                } else if (it->second != indexEntry.hashHex) {
+                    // File exists in HEAD but hash differs - modified
+                    staged.push_back(indexEntry.path);
                 }
+                // If hash matches, file is unchanged - not staged
             }
         } catch (const std::exception&) {
             // Error comparing, assume all staged

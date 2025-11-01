@@ -585,5 +585,278 @@ TEST_F(GitWorkflowTest, ResetWorkflow) {
     EXPECT_TRUE(statusOutput.find("file2.txt") != std::string::npos);
 }
 
+/**
+ * @brief Test: Complete branching workflow
+ * Positive: Create branches, switch, make commits on different branches
+ */
+TEST_F(GitWorkflowTest, BranchingWorkflow) {
+    auto initCmd = CommandFactory::instance().create("init");
+    auto addCmd = CommandFactory::instance().create("add");
+    auto commitCmd = CommandFactory::instance().create("commit");
+    auto checkoutCmd = CommandFactory::instance().create("checkout");
+    auto logCmd = CommandFactory::instance().create("log");
+    
+    // 1. Initialize repository
+    invoker.invoke(*initCmd, ctx, {});
+    
+    // 2. Create commit on main
+    createFile(tempDir, "main-file.txt", "main content");
+    invoker.invoke(*addCmd, ctx, {"main-file.txt"});
+    invoker.invoke(*commitCmd, ctx, {"-m", "Main commit"});
+    
+    // Get main commit hash
+    auto headRes = Repository::resolveHEAD(repoPath);
+    ASSERT_TRUE(headRes);
+    auto [mainHash, _] = headRes.value();
+    
+    // 3. Create and switch to feature branch
+    testing::internal::CaptureStdout();
+    invoker.invoke(*checkoutCmd, ctx, {"-b", "feature"});
+    std::string output = testing::internal::GetCapturedStdout();
+    EXPECT_NE(output.find("Switched to a new branch 'feature'"), std::string::npos);
+    
+    // Verify HEAD points to feature
+    auto branchRes = Repository::getCurrentBranch(repoPath);
+    ASSERT_TRUE(branchRes);
+    EXPECT_EQ(branchRes.value(), "feature");
+    
+    // Verify feature points to same commit as main
+    headRes = Repository::resolveHEAD(repoPath);
+    ASSERT_TRUE(headRes);
+    auto [featureHash1, __] = headRes.value();
+    EXPECT_EQ(mainHash, featureHash1);
+    
+    // 4. Create commit on feature
+    createFile(tempDir, "feature-file.txt", "feature content");
+    invoker.invoke(*addCmd, ctx, {"feature-file.txt"});
+    invoker.invoke(*commitCmd, ctx, {"-m", "Feature commit"});
+    
+    // Get feature commit hash
+    headRes = Repository::resolveHEAD(repoPath);
+    ASSERT_TRUE(headRes);
+    auto [featureHash2, ___] = headRes.value();
+    EXPECT_NE(mainHash, featureHash2);
+    
+    // 5. Switch back to main
+    testing::internal::CaptureStdout();
+    invoker.invoke(*checkoutCmd, ctx, {"main"});
+    output = testing::internal::GetCapturedStdout();
+    EXPECT_NE(output.find("Switched to branch 'main'"), std::string::npos);
+    
+    // Verify HEAD points to main
+    branchRes = Repository::getCurrentBranch(repoPath);
+    ASSERT_TRUE(branchRes);
+    EXPECT_EQ(branchRes.value(), "main");
+    
+    // Verify main still has original commit
+    headRes = Repository::resolveHEAD(repoPath);
+    ASSERT_TRUE(headRes);
+    auto [mainHashCheck, ____] = headRes.value();
+    EXPECT_EQ(mainHash, mainHashCheck);
+    
+    // 6. Switch back to feature
+    testing::internal::CaptureStdout();
+    invoker.invoke(*checkoutCmd, ctx, {"feature"});
+    output = testing::internal::GetCapturedStdout();
+    EXPECT_NE(output.find("Switched to branch 'feature'"), std::string::npos);
+    
+    // Verify HEAD points to feature with new commit
+    headRes = Repository::resolveHEAD(repoPath);
+    ASSERT_TRUE(headRes);
+    auto [featureHashCheck, _____] = headRes.value();
+    EXPECT_EQ(featureHash2, featureHashCheck);
+}
+
+/**
+ * @brief Test: Create multiple branches from same commit
+ * Positive: All branches initially point to same commit
+ */
+TEST_F(GitWorkflowTest, MultipleBranches) {
+    auto initCmd = CommandFactory::instance().create("init");
+    auto addCmd = CommandFactory::instance().create("add");
+    auto commitCmd = CommandFactory::instance().create("commit");
+    auto checkoutCmd = CommandFactory::instance().create("checkout");
+    
+    // 1. Initialize and create commit
+    invoker.invoke(*initCmd, ctx, {});
+    createFile(tempDir, "file.txt", "content");
+    invoker.invoke(*addCmd, ctx, {"file.txt"});
+    invoker.invoke(*commitCmd, ctx, {"-m", "Initial"});
+    
+    auto headRes = Repository::resolveHEAD(repoPath);
+    ASSERT_TRUE(headRes);
+    auto [initialHash, _] = headRes.value();
+    
+    // 2. Create three branches
+    invoker.invoke(*checkoutCmd, ctx, {"-b", "branch1"});
+    invoker.invoke(*checkoutCmd, ctx, {"main"});
+    invoker.invoke(*checkoutCmd, ctx, {"-b", "branch2"});
+    invoker.invoke(*checkoutCmd, ctx, {"main"});
+    invoker.invoke(*checkoutCmd, ctx, {"-b", "branch3"});
+    
+    // 3. Switch to each branch and verify they all point to same commit
+    invoker.invoke(*checkoutCmd, ctx, {"branch1"});
+    headRes = Repository::resolveHEAD(repoPath);
+    ASSERT_TRUE(headRes);
+    auto [hash1, __] = headRes.value();
+    EXPECT_EQ(initialHash, hash1);
+    
+    invoker.invoke(*checkoutCmd, ctx, {"branch2"});
+    headRes = Repository::resolveHEAD(repoPath);
+    ASSERT_TRUE(headRes);
+    auto [hash2, ___] = headRes.value();
+    EXPECT_EQ(initialHash, hash2);
+    
+    invoker.invoke(*checkoutCmd, ctx, {"branch3"});
+    headRes = Repository::resolveHEAD(repoPath);
+    ASSERT_TRUE(headRes);
+    auto [hash3, ____] = headRes.value();
+    EXPECT_EQ(initialHash, hash3);
+}
+
+/**
+ * @brief Test: gitter add . should not re-stage unchanged files
+ * Positive: After committing, gitter add . should not modify unchanged files in index
+ */
+TEST_F(GitWorkflowTest, AddDotDoesNotRestageUnchangedFiles) {
+    auto initCmd = CommandFactory::instance().create("init");
+    auto addCmd = CommandFactory::instance().create("add");
+    auto commitCmd = CommandFactory::instance().create("commit");
+    
+    // Initialize repository
+    invoker.invoke(*initCmd, ctx, {});
+    
+    // Create and commit a file
+    createFile(tempDir, "file1.txt", "content1");
+    invoker.invoke(*addCmd, ctx, {"file1.txt"});
+    invoker.invoke(*commitCmd, ctx, {"-m", "Initial commit"});
+    
+    // Capture initial index state
+    Index index1;
+    index1.load(repoPath);
+    std::string initialHash = index1.entries().at("file1.txt").hashHex;
+    
+    // Run gitter add . - should not modify file1.txt
+    invoker.invoke(*addCmd, ctx, {"."});
+    
+    // Verify hash unchanged
+    Index index2;
+    index2.load(repoPath);
+    std::string afterAddHash = index2.entries().at("file1.txt").hashHex;
+    EXPECT_EQ(initialHash, afterAddHash) << "add . should not modify unchanged file";
+}
+
+/**
+ * @brief Test: gitter add . should add new files but skip unchanged ones
+ * Positive: Add . should only add new files, not re-stage committed files
+ */
+TEST_F(GitWorkflowTest, AddDotAddsNewFilesSkipsUnchanged) {
+    auto initCmd = CommandFactory::instance().create("init");
+    auto addCmd = CommandFactory::instance().create("add");
+    auto commitCmd = CommandFactory::instance().create("commit");
+    auto statusCmd = CommandFactory::instance().create("status");
+    
+    // Initialize repository
+    invoker.invoke(*initCmd, ctx, {});
+    
+    // Create and commit a file
+    createFile(tempDir, "file1.txt", "content1");
+    invoker.invoke(*addCmd, ctx, {"file1.txt"});
+    invoker.invoke(*commitCmd, ctx, {"-m", "Initial commit"});
+    
+    // Capture initial hash
+    Index index1;
+    index1.load(repoPath);
+    std::string initialHash = index1.entries().at("file1.txt").hashHex;
+    
+    // Add a new file and run gitter add .
+    createFile(tempDir, "file2.txt", "content2");
+    invoker.invoke(*addCmd, ctx, {"."});
+    
+    // Verify both files in index
+    Index index2;
+    index2.load(repoPath);
+    const auto& entries = index2.entries();
+    EXPECT_EQ(entries.size(), 2);
+    EXPECT_TRUE(entries.find("file1.txt") != entries.end());
+    EXPECT_TRUE(entries.find("file2.txt") != entries.end());
+    
+    // Verify file1.txt hash unchanged
+    EXPECT_EQ(entries.at("file1.txt").hashHex, initialHash) << "file1.txt should not be modified";
+    
+    // Verify status shows only file2.txt as staged
+    testing::internal::CaptureStdout();
+    invoker.invoke(*statusCmd, ctx, {});
+    std::string statusOutput = testing::internal::GetCapturedStdout();
+    EXPECT_NE(statusOutput.find("Changes to be committed"), std::string::npos);
+    EXPECT_NE(statusOutput.find("file2.txt"), std::string::npos);
+    EXPECT_EQ(statusOutput.find("file1.txt"), std::string::npos) << "file1.txt should not be listed as staged";
+}
+
+/**
+ * @brief Test: Status should only show changed files as staged, not all files
+ * Positive: After add . with one new file, status should only show that file
+ */
+TEST_F(GitWorkflowTest, StatusShowsOnlyChangedFilesAsStaged) {
+    auto initCmd = CommandFactory::instance().create("init");
+    auto addCmd = CommandFactory::instance().create("add");
+    auto commitCmd = CommandFactory::instance().create("commit");
+    auto statusCmd = CommandFactory::instance().create("status");
+    
+    // Initialize repository
+    invoker.invoke(*initCmd, ctx, {});
+    
+    // Create and commit file1.txt
+    createFile(tempDir, "file1.txt", "content1");
+    invoker.invoke(*addCmd, ctx, {"file1.txt"});
+    invoker.invoke(*commitCmd, ctx, {"-m", "Initial commit"});
+    
+    // Add new file2.txt
+    createFile(tempDir, "file2.txt", "content2");
+    invoker.invoke(*addCmd, ctx, {"file2.txt"});
+    
+    // Check status - should show only file2.txt as staged
+    testing::internal::CaptureStdout();
+    invoker.invoke(*statusCmd, ctx, {});
+    std::string statusOutput = testing::internal::GetCapturedStdout();
+    
+    EXPECT_NE(statusOutput.find("Changes to be committed"), std::string::npos);
+    EXPECT_NE(statusOutput.find("file2.txt"), std::string::npos);
+    EXPECT_EQ(statusOutput.find("file1.txt"), std::string::npos) << "file1.txt should not be listed as staged";
+}
+
+/**
+ * @brief Test: Status should show modified files, not unchanged ones
+ * Positive: Modify one file, status should only show that file as staged
+ */
+TEST_F(GitWorkflowTest, StatusShowsOnlyModifiedFilesAsStaged) {
+    auto initCmd = CommandFactory::instance().create("init");
+    auto addCmd = CommandFactory::instance().create("add");
+    auto commitCmd = CommandFactory::instance().create("commit");
+    auto statusCmd = CommandFactory::instance().create("status");
+    
+    // Initialize repository
+    invoker.invoke(*initCmd, ctx, {});
+    
+    // Create and commit file1.txt and file2.txt
+    createFile(tempDir, "file1.txt", "content1");
+    createFile(tempDir, "file2.txt", "content2");
+    invoker.invoke(*addCmd, ctx, {"file1.txt", "file2.txt"});
+    invoker.invoke(*commitCmd, ctx, {"-m", "Initial commit"});
+    
+    // Modify only file1.txt and stage it
+    createFile(tempDir, "file1.txt", "modified1");
+    invoker.invoke(*addCmd, ctx, {"file1.txt"});
+    
+    // Check status - should show only file1.txt as staged
+    testing::internal::CaptureStdout();
+    invoker.invoke(*statusCmd, ctx, {});
+    std::string statusOutput = testing::internal::GetCapturedStdout();
+    
+    EXPECT_NE(statusOutput.find("Changes to be committed"), std::string::npos);
+    EXPECT_NE(statusOutput.find("file1.txt"), std::string::npos);
+    EXPECT_EQ(statusOutput.find("file2.txt"), std::string::npos) << "file2.txt should not be listed as staged";
+}
+
 } // namespace gitter::test
 

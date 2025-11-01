@@ -8,7 +8,7 @@ Expected<void> CommandInvoker::invoke(ICommand& cmd, const AppContext& ctx, cons
     Logger::instance().debug(std::string("Executing command: ") + cmd.name());
     auto res = cmd.execute(ctx, args);
     if (!res) {
-        Logger::instance().error(std::string(cmd.name()) + ": " + res.error().message);
+        Logger::instance().error(res.error().message);
         return res;
     }
     return {};

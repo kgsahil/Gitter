@@ -13,6 +13,7 @@
 #include "util/Sha256Hasher.hpp"
 #include "core/CommitObject.hpp"
 #include "core/Constants.hpp"
+#include "core/TreeBuilder.hpp"
 
 #include <zlib.h>
 
@@ -304,6 +305,26 @@ std::string ObjectStore::readObject(const std::string& hash) {
     return zlibDecompress(compressed);
 }
 
+std::string ObjectStore::readBlob(const std::string& hash) {
+    // Read and decompress blob object
+    std::string fullObject = readObject(hash);
+    
+    // Find header end (type size\0)
+    size_t headerEnd = fullObject.find('\0');
+    if (headerEnd == std::string::npos) {
+        throw std::runtime_error("Invalid blob object format");
+    }
+    
+    // Extract header and verify it's a blob
+    std::string header = fullObject.substr(0, headerEnd);
+    if (header.rfind("blob ", 0) != 0) {
+        throw std::runtime_error("Not a blob object");
+    }
+    
+    // Extract content after header
+    return fullObject.substr(headerEnd + 1);
+}
+
 CommitObject ObjectStore::readCommit(const std::string& hash) {
     // Read and decompress commit object
     std::string fullObject = readObject(hash);
@@ -420,6 +441,75 @@ CommitObject ObjectStore::readCommit(const std::string& hash) {
     // Keep trailing newline - Git stores commit messages with trailing newline
     
     return commit;
+}
+
+std::vector<TreeEntry> ObjectStore::readTree(const std::string& hash) {
+    // Read and decompress tree object
+    std::string fullObject = readObject(hash);
+    
+    // Find header end (type size\0)
+    size_t headerEnd = fullObject.find('\0');
+    if (headerEnd == std::string::npos) {
+        throw std::runtime_error("Invalid tree object format");
+    }
+    
+    // Extract header and verify it's a tree
+    std::string header = fullObject.substr(0, headerEnd);
+    if (header.rfind("tree ", 0) != 0) {
+        throw std::runtime_error("Not a tree object");
+    }
+    
+    // Extract content after header
+    std::string content = fullObject.substr(headerEnd + 1);
+    
+    // Parse tree entries
+    std::vector<TreeEntry> entries;
+    size_t pos = 0;
+    
+    // Tree format: <mode> <name>\0<20-byte-binary-hash>
+    while (pos < content.size()) {
+        TreeEntry entry;
+        
+        // Parse mode (octal number followed by space)
+        size_t spacePos = content.find(' ', pos);
+        if (spacePos == std::string::npos) {
+            throw std::runtime_error("Invalid tree entry: missing mode");
+        }
+        std::string modeStr = content.substr(pos, spacePos - pos);
+        entry.mode = static_cast<uint32_t>(std::stoi(modeStr, nullptr, 10));
+        
+        // Skip space and parse name
+        size_t nullPos = content.find('\0', spacePos + 1);
+        if (nullPos == std::string::npos) {
+            throw std::runtime_error("Invalid tree entry: missing null terminator");
+        }
+        entry.name = content.substr(spacePos + 1, nullPos - spacePos - 1);
+        
+        // Determine if this is a tree (directory)
+        entry.isTree = (entry.mode == 040000);
+        
+        // Parse binary hash and convert to hex
+        size_t hashStart = nullPos + 1;
+        size_t hashSize = hasher->digestSize();
+        
+        if (hashStart + hashSize > content.size()) {
+            throw std::runtime_error("Invalid tree entry: incomplete hash");
+        }
+        
+        // Convert binary hash to hex string
+        std::string hashBytes = content.substr(hashStart, hashSize);
+        entry.hashHex = IHasher::toHex(std::vector<uint8_t>(
+            reinterpret_cast<const uint8_t*>(hashBytes.data()),
+            reinterpret_cast<const uint8_t*>(hashBytes.data() + hashSize)
+        ));
+        
+        entries.push_back(entry);
+        
+        // Move to next entry
+        pos = hashStart + hashSize;
+    }
+    
+    return entries;
 }
 
 }

@@ -16,6 +16,7 @@ A minimal Git-like CLI tool that mimics core Git functionality, built with C++20
 | `gitter status` | Show working tree status | `gitter status` |
 | `gitter restore --staged <pathspec>` | Unstage files | `gitter restore --staged file.txt`, `gitter restore --staged *.cpp` |
 | `gitter reset <commit>` | Reset HEAD to a commit | `gitter reset HEAD~1`, `gitter reset HEAD~2` |
+| `gitter checkout <branch>` | Switch branches | `gitter checkout feature`, `gitter checkout -b new-branch` |
 | `gitter cat-file <type> <hash>` | Inspect Git objects | `gitter cat-file blob abc123...`, `gitter cat-file -t abc123...` |
 
 ### Pattern Matching Support
@@ -211,6 +212,21 @@ gitter reset HEAD
 
 **Note:** `gitter reset` moves HEAD to the specified commit and clears the index, leaving all changes in the working tree unindexed.
 
+### Checkout Branches
+
+```bash
+# Switch to existing branch
+gitter checkout feature
+
+# Create and switch to new branch
+gitter checkout -b new-branch
+
+# Switch back to main
+gitter checkout main
+```
+
+**Note:** Checkout fully restores the working tree from the target branch's commit, including all files and subdirectories, and rebuilds the index to match.
+
 ### Inspect Objects
 
 ```bash
@@ -292,6 +308,25 @@ gitter cat-file -s abc123...
 4. **Update HEAD**: Write target commit hash to branch reference
 5. **Clear Index**: Remove all staged files (changes become unindexed)
 6. **Silent Success**: No output (Git-like behavior)
+
+### How Checkout Works
+
+1. **Parse Arguments**: Extract branch name and `-b` flag
+2. **Resolve HEAD**: Get current commit hash for branch creation
+3. **Branch Creation** (if `-b`):
+   - Check if branch already exists
+   - Create `.gitter/refs/heads/<branch>` with current commit hash
+   - Update `.gitter/HEAD` to point to branch
+   - Output: "Switched to a new branch '<branch-name>'"
+4. **Branch Switching**:
+   - Check if branch exists
+   - Read target branch's commit hash
+   - Read commit's tree object
+   - **Restore Working Tree**: Recursively traverse tree and restore all files
+   - **Rebuild Index**: Update index to match branch state
+   - Update `.gitter/HEAD` to point to branch
+   - Output: "Switched to branch '<branch-name>'"
+5. **Error Handling**: Validate arguments, branch existence, and commits
 
 ### Tree Storage
 
@@ -436,8 +471,7 @@ gitter status  # Reset files should be untracked
 - **Code quality**: Constants extraction, input validation, graceful recovery
 
 ### Next Steps 🚧
-- `checkout` - Switch branches and restore working tree
-- Branch management (create, delete, list branches)
+- Branch management (delete, rename branches)
 - Diff output for file changes
 - Merge commits (basic merge support)
 - Remote operations (push/pull/fetch)
