@@ -58,9 +58,28 @@
 ## 🎬 Getting Started
 
 ### Prerequisites
+
+**Option 1: Docker (Easiest - No Build Required!)**
+- Docker & Docker Compose installed
+
+**Option 2: Build from Source**
 - **CMake 3.20+**
 - **C++20 Compiler** (GCC 10+, Clang 12+, MSVC 2022+)
 - **Linux/macOS/WSL** or **Windows**
+
+### Quick Start with Docker 🐳
+
+```bash
+# Build and run interactively with welcome message!
+docker-compose build
+docker-compose run --rm gitter
+
+# Or run directly without docker-compose
+docker build -t gitter-cli:latest .
+docker run -it --rm gitter-cli:latest
+```
+
+[Full Docker instructions →](docs/DOCKER_USAGE.md)
 
 ### Quick Build
 
@@ -318,6 +337,35 @@ The wrapper searches build directories in this order:
 3. `build/macos-*/gitter` (all variants)
 4. `build/windows-*/gitter.exe` (all variants)
 5. Any other `build/*/gitter*` executables
+
+### 🐳 Docker Support (No Build Required!)
+
+Try Gitter instantly without installing dependencies:
+
+```bash
+# Using Docker Compose (recommended)
+docker-compose up -d
+docker-compose exec gitter bash
+
+# Inside container
+gitter help
+gitter init demo-repo
+cd demo-repo
+echo "Hello World" > file.txt
+gitter add file.txt
+gitter commit -m "Initial commit"
+gitter log
+
+# Exit and cleanup
+exit
+docker-compose down
+
+# Or use Docker directly
+docker build -t gitter-cli:latest .
+docker run -it gitter-cli:latest bash
+```
+
+**See [Docker Usage Guide](docs/DOCKER_USAGE.md) for complete instructions and customization options.**
 
 ---
 
@@ -656,6 +704,9 @@ See [docs/COVERAGE.md](docs/COVERAGE.md) for detailed coverage analysis.
 ### Testing & Quality
 - **[COVERAGE.md](docs/COVERAGE.md)** - Test coverage analysis (205+ tests)
 
+### Deployment & Distribution
+- **[DOCKER_USAGE.md](docs/DOCKER_USAGE.md)** - Run Gitter with Docker (no build required!)
+
 ### Code Quality
 - **Doxygen Comments** - All public APIs documented
 - **Inline Documentation** - Complex logic explained
@@ -674,6 +725,38 @@ See [docs/COVERAGE.md](docs/COVERAGE.md) for detailed coverage analysis.
 - Command Pattern for CLI architecture
 - Strategy Pattern for extensible hashing
 - Factory Pattern for dynamic creation
+
+---
+
+## 🔧 Troubleshooting
+
+### CMake Cache Issues
+
+If you see errors like:
+```
+CMake Error: The current CMakeCache.txt directory ... is different than the directory ...
+```
+
+**Solution:** Delete the old build directory and reconfigure:
+```bash
+rm -rf build/linux-debug build/linux-release
+cmake --preset linux-debug
+cmake --build --preset linux-debug-build
+```
+
+This happens when the project is moved or copied to a different location, as CMake stores absolute paths in the cache.
+
+### Build Fails
+
+**Windows:** Ensure you have Visual Studio 2022 with "Desktop Development with C++" workload, or use WSL.
+
+**macOS:** Install Xcode Command Line Tools: `xcode-select --install`
+
+**Linux:** Install build essentials: `sudo apt install build-essential cmake ninja-build`
+
+### Tests Fail
+
+Some tests require timing differences. If tests are flaky, add small delays or run them individually.
 
 ---
 

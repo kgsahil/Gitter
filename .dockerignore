@@ -1,0 +1,56 @@
+# Build artifacts
+build/
+CMakeCache.txt
+CMakeFiles/
+Testing/
+*.cmake.user
+
+# Compiled binaries (exclude actual compiled executables in build/)
+# gitter  # Don't exclude wrapper script
+gitter.exe
+gitter_tests
+gitter_tests.exe
+
+# IDE files
+.vscode/
+.idea/
+*.xcodeproj/
+*.xcworkspace/
+
+# Coverage
+coverage/
+*.gcda
+*.gcno
+*.gcov
+
+# Git
+.git/
+.gitignore
+
+# Documentation (optional - keep if you want them in Docker)
+docs/
+*.md
+!README.md
+
+# Tests - needed for build
+# test/
+
+# Scripts (but keep gitter wrapper and welcome script)
+*.sh
+!gitter
+!docker-demo/welcome.sh
+*.ps1
+
+# Temporary files
+*.tmp
+*.log
+*~
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# WSL
+out/
+out/*
+
