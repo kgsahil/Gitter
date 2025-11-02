@@ -14,6 +14,52 @@
       }
     },
     {
+      "name": "macos-debug",
+      "displayName": "macOS Debug (Xcode)",
+      "generator": "Xcode",
+      "binaryDir": "${sourceDir}/build/macos-debug",
+      "cacheVariables": {
+        "CMAKE_CXX_STANDARD": "20",
+        "GITTER_STRICT": "OFF",
+        "GITTER_BUILD_TESTS": "ON"
+      }
+    },
+    {
+      "name": "macos-release",
+      "displayName": "macOS Release (Xcode)",
+      "generator": "Xcode",
+      "binaryDir": "${sourceDir}/build/macos-release",
+      "cacheVariables": {
+        "CMAKE_CXX_STANDARD": "20",
+        "GITTER_STRICT": "OFF",
+        "GITTER_BUILD_TESTS": "ON"
+      }
+    },
+    {
+      "name": "macos-ninja-debug",
+      "displayName": "macOS Debug (Ninja)",
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/build/macos-ninja-debug",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug",
+        "CMAKE_CXX_STANDARD": "20",
+        "GITTER_STRICT": "OFF",
+        "GITTER_BUILD_TESTS": "ON"
+      }
+    },
+    {
+      "name": "macos-ninja-release",
+      "displayName": "macOS Release (Ninja)",
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/build/macos-ninja-release",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "CMAKE_CXX_STANDARD": "20",
+        "GITTER_STRICT": "OFF",
+        "GITTER_BUILD_TESTS": "ON"
+      }
+    },
+    {
       "name": "linux-release",
       "displayName": "Linux Release (Ninja)",
       "generator": "Ninja",
@@ -25,32 +71,15 @@
       }
     },
     {
-      "name": "windows-debug",
-      "displayName": "Windows Debug (Visual Studio)",
+      "name": "windows-vs2022",
+      "displayName": "Windows Visual Studio 2022",
       "generator": "Visual Studio 17 2022",
       "architecture": {
         "value": "x64",
         "strategy": "external"
       },
-      "binaryDir": "${sourceDir}/build/windows-debug",
+      "binaryDir": "${sourceDir}/build/windows-vs2022",
       "cacheVariables": {
-        "CMAKE_BUILD_TYPE": "Debug",
-        "CMAKE_CXX_STANDARD": "20",
-        "GITTER_STRICT": "OFF",
-        "GITTER_BUILD_TESTS": "ON"
-      }
-    },
-    {
-      "name": "windows-release",
-      "displayName": "Windows Release (Visual Studio)",
-      "generator": "Visual Studio 17 2022",
-      "architecture": {
-        "value": "x64",
-        "strategy": "external"
-      },
-      "binaryDir": "${sourceDir}/build/windows-release",
-      "cacheVariables": {
-        "CMAKE_BUILD_TYPE": "Release",
         "CMAKE_CXX_STANDARD": "20",
         "GITTER_STRICT": "OFF",
         "GITTER_BUILD_TESTS": "ON"
@@ -97,8 +126,28 @@
   "buildPresets": [
     { "name": "linux-debug-build", "configurePreset": "linux-debug" },
     { "name": "linux-release-build", "configurePreset": "linux-release" },
-    { "name": "windows-debug-build", "configurePreset": "windows-debug" },
-    { "name": "windows-release-build", "configurePreset": "windows-release" },
+    { 
+      "name": "macos-debug-build", 
+      "configurePreset": "macos-debug",
+      "configuration": "Debug"
+    },
+    { 
+      "name": "macos-release-build", 
+      "configurePreset": "macos-release",
+      "configuration": "Release"
+    },
+    { "name": "macos-ninja-debug-build", "configurePreset": "macos-ninja-debug" },
+    { "name": "macos-ninja-release-build", "configurePreset": "macos-ninja-release" },
+    { 
+      "name": "windows-vs2022-debug", 
+      "configurePreset": "windows-vs2022",
+      "configuration": "Debug"
+    },
+    { 
+      "name": "windows-vs2022-release", 
+      "configurePreset": "windows-vs2022",
+      "configuration": "Release"
+    },
     { "name": "windows-ninja-debug-build", "configurePreset": "windows-ninja-debug" },
     { "name": "windows-ninja-release-build", "configurePreset": "windows-ninja-release" },
     { "name": "linux-coverage-build", "configurePreset": "linux-coverage" }

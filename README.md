@@ -250,8 +250,10 @@ src/main.cpp<TAB>abc123...<TAB>1024<TAB>1234567890000000000<TAB>33188<TAB>123456
 |----------|----------|--------|
 | **Linux** | GCC 10+, Clang 12+ | ✅ Fully Supported |
 | **macOS** | Clang 12+ | ✅ Fully Supported |
-| **Windows** | MSVC 2022+, MinGW | ✅ Fully Supported |
+| **Windows** | MSVC 2022+* | ✅ Fully Supported |
 | **WSL** | GCC 10+ | ✅ Fully Supported |
+
+\* **Windows Note**: Visual Studio 2022 requires the **Desktop Development with C++** workload installed. If you encounter "could not find any instance of Visual Studio", install this workload via Visual Studio Installer.
 
 </div>
 
@@ -270,6 +272,20 @@ cmake --build build/linux-debug --target gitter_tests
 # Release build
 cmake --preset linux-release
 cmake --build --preset linux-release-build
+
+# macOS - Xcode Generator
+cmake --preset macos-debug
+cmake --build --preset macos-debug-build      # Build Debug configuration
+cmake --build --preset macos-release-build    # Build Release configuration
+
+# macOS - Ninja Generator (Alternative)
+cmake --preset macos-ninja-debug
+cmake --build --preset macos-ninja-debug-build
+
+# Visual Studio 2022 (Windows) - Requires Desktop Development with C++ workload
+cmake --preset windows-vs2022
+cmake --build --preset windows-vs2022-debug   # Build Debug configuration
+cmake --build --preset windows-vs2022-release # Build Release configuration
 ```
 
 ### Alternative: Traditional CMake
@@ -279,6 +295,29 @@ cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
 cmake --build build -j4
 ./build/gitter help
 ```
+
+### Convenience: Using the Wrapper Script
+
+After building, you can use the `gitter` wrapper script from the project root:
+
+```bash
+# The script automatically finds the first available built gitter executable
+./gitter help
+./gitter status
+./gitter add file.txt
+./gitter commit -m "My changes"
+
+# Or add to PATH for global access
+export PATH="$PWD:$PATH"
+gitter help
+```
+
+The wrapper searches build directories in this order:
+1. `build/linux-release/gitter`
+2. `build/linux-debug/gitter`
+3. `build/macos-*/gitter` (all variants)
+4. `build/windows-*/gitter.exe` (all variants)
+5. Any other `build/*/gitter*` executables
 
 ---
 

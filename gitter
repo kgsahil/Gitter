@@ -9,16 +9,39 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # Look for gitter executable in build directories (in order of preference)
 GITTER_EXEC=""
 
-# Try local builds first
-if [ -f "$SCRIPT_DIR/build/linux-release/gitter" ]; then
-    GITTER_EXEC="$SCRIPT_DIR/build/linux-release/gitter"
-elif [ -f "$SCRIPT_DIR/build/linux-debug/gitter" ]; then
-    GITTER_EXEC="$SCRIPT_DIR/build/linux-debug/gitter"
-elif [ -f "$SCRIPT_DIR/build/windows-release/gitter.exe" ]; then
-    GITTER_EXEC="$SCRIPT_DIR/build/windows-release/gitter.exe"
-elif [ -f "$SCRIPT_DIR/build/windows-debug/gitter.exe" ]; then
-    GITTER_EXEC="$SCRIPT_DIR/build/windows-debug/gitter.exe"
-fi
+# Build directory patterns to search (in order of preference)
+BUILD_DIRS=(
+    "build/linux-release"
+    "build/linux-debug"
+    "build/linux-coverage"
+    "build/macos-ninja-release"
+    "build/macos-ninja-debug"
+    "build/macos-release"
+    "build/macos-debug"
+    "build/windows-ninja-release"
+    "build/windows-ninja-debug"
+    "build/windows-release"
+    "build/windows-debug"
+    "build/windows-vs2022"
+    "build/*"
+)
+
+# Search for gitter executable
+for BUILD_DIR in "${BUILD_DIRS[@]}"; do
+    # Handle wildcard patterns
+    for SEARCH_DIR in "$SCRIPT_DIR"/$BUILD_DIR; do
+        if [ -d "$SEARCH_DIR" ]; then
+            # Try .exe first (Windows), then regular executable (Unix)
+            if [ -f "$SEARCH_DIR/gitter.exe" ]; then
+                GITTER_EXEC="$SEARCH_DIR/gitter.exe"
+                break 2
+            elif [ -f "$SEARCH_DIR/gitter" ] && [ -x "$SEARCH_DIR/gitter" ]; then
+                GITTER_EXEC="$SEARCH_DIR/gitter"
+                break 2
+            fi
+        fi
+    done
+done
 
 # If no executable found, show error
 if [ -z "$GITTER_EXEC" ]; then

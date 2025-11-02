@@ -362,3 +362,49 @@ MigrationBackup/
 
 # Fody - auto-generated XML schema
 FodyWeavers.xsd
+
+## CMake Build Files
+build/
+CMakeCache.txt
+CMakeFiles/
+CMakeScripts/
+Testing/
+Makefile
+cmake_install.cmake
+install_manifest.txt
+compile_commands.json
+CTestTestfile.cmake
+*.cmake.user
+.cmake/
+
+## Compiled Binaries
+gitter
+gitter.exe
+gitter_tests
+gitter_tests.exe
+
+## Object Files (Unix/Linux)
+*.o
+*.lo
+*.slo
+
+## Coverage Reports
+*.gcda
+*.gcno
+*.gcov
+coverage/
+*.lcov
+
+## IDE Files (CMake-specific)
+.vscode/
+.idea/
+*.iml
+*.ipr
+*.iws
+
+## Xcode
+*.xcodeproj/
+*.xcworkspace/
+xcuserdata/
+DerivedData/
+.build/
