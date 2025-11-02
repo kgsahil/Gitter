@@ -165,7 +165,8 @@ Expected<void> CommitCommand::execute(const AppContext&, const std::vector<std::
         try {
             CommitObject parentCommit = store.readCommit(parentHash);
             if (treeHash == parentCommit.treeHash) {
-                return Error{ErrorCode::InvalidArgs, "nothing to commit, working tree clean"};
+                std::cout << "nothing to commit, working tree clean\n";
+                return {};
             }
         } catch (const std::exception&) {
             // If we can't read parent, proceed with commit
