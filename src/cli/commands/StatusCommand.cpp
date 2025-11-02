@@ -16,31 +16,13 @@
 #include "core/CommitObject.hpp"
 #include "core/TreeBuilder.hpp"
 #include "util/FileMetadata.hpp"
+#include "util/PathUtils.hpp"
 // Include concrete hasher to allow ObjectStore destructor instantiation
 #include "util/Sha1Hasher.hpp"
 
 namespace fs = std::filesystem;
 
 namespace gitter {
-
-/**
- * @brief Normalize path for consistent comparison with index
- * 
- * Uses same normalization as Index::normalizePath to ensure paths match.
- * Normalizes path to use forward slashes and removes unnecessary components
- * like "./" prefix. Ensures same file always has same path representation.
- */
-static std::string normalizePathForStatus(const std::string& path) {
-    fs::path p(path);
-    std::string normalized = p.lexically_normal().generic_string();
-    
-    // Remove leading ./ if present (matches Index::normalizePath)
-    if (normalized.length() >= 2 && normalized.substr(0, 2) == "./") {
-        normalized = normalized.substr(2);
-    }
-    
-    return normalized;
-}
 
 /**
  * @brief Collect untracked files by scanning working tree
@@ -92,7 +74,7 @@ static void collectUntracked(const fs::path& root, const std::unordered_set<std:
         }
         
         // Normalize path using same logic as Index
-        std::string normalizedPath = normalizePathForStatus(rel.generic_string());
+        std::string normalizedPath = PathUtils::normalize(rel.generic_string());
         
         // Check if file is tracked (in index)
         if (indexed.find(normalizedPath) == indexed.end()) {

@@ -8,6 +8,7 @@
 #include <cctype>
 #include <vector>
 #include "core/Constants.hpp"
+#include "util/PathUtils.hpp"
 
 namespace fs = std::filesystem;
 
@@ -80,24 +81,6 @@ static std::string base64Decode(const std::string& input) {
 }
 
 /**
- * @brief Normalize path for consistent storage in index
- * 
- * Normalizes path to use forward slashes and removes unnecessary components
- * like "./" prefix. Ensures same file always has same path representation.
- */
-static std::string normalizePath(const std::string& path) {
-    fs::path p(path);
-    std::string normalized = p.lexically_normal().generic_string();
-    
-    // Remove leading ./ if present
-    if (normalized.length() >= 2 && normalized.substr(0, 2) == "./") {
-        normalized = normalized.substr(2);
-    }
-    
-    return normalized;
-}
-
-/**
  * @brief Validate hash is 40-character hex string (SHA-1)
  */
 static bool isValidHash(const std::string& hash) {
@@ -132,13 +115,7 @@ bool Index::load(const fs::path& repoRoot) {
         std::getline(iss, ctimeStr, '\t');
         
         // Decode path from base64
-        std::string path;
-        try {
-            path = base64Decode(encodedPath);
-        } catch (const std::exception&) {
-            // Skip invalid base64 entries
-            continue;
-        }
+        std::string path = base64Decode(encodedPath);
         
         // Validate hash format
         if (!isValidHash(hash)) {
@@ -147,7 +124,7 @@ bool Index::load(const fs::path& repoRoot) {
         }
         
         // Normalize path for consistent storage
-        std::string normalizedPath = normalizePath(path);
+        std::string normalizedPath = PathUtils::normalize(path);
         
         IndexEntry e;
         e.path = normalizedPath;
@@ -222,7 +199,7 @@ bool Index::save(const fs::path& repoRoot) const {
 void Index::addOrUpdate(const IndexEntry& entry) {
     // Normalize path for consistent storage
     IndexEntry normalizedEntry = entry;
-    normalizedEntry.path = normalizePath(entry.path);
+    normalizedEntry.path = PathUtils::normalize(entry.path);
     
     // Validate hash before storing
     if (!isValidHash(normalizedEntry.hashHex)) {
@@ -234,7 +211,7 @@ void Index::addOrUpdate(const IndexEntry& entry) {
 
 void Index::remove(const std::string& path) {
     // Normalize path before removal
-    std::string normalizedPath = normalizePath(path);
+    std::string normalizedPath = PathUtils::normalize(path);
     pathToEntry.erase(normalizedPath);
 }
 

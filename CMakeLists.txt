@@ -56,6 +56,7 @@ add_library(gitter_lib
   src/util/Sha1Hasher.cpp
   src/util/Sha256Hasher.cpp
   src/util/FileMetadata.cpp
+  src/util/PathUtils.cpp
   src/cli/CommandFactory.cpp
   src/cli/CommandInvoker.cpp
   src/cli/commands/HelpCommand.cpp
