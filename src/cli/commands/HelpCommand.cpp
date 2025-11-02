@@ -1,5 +1,6 @@
 #include "cli/commands/HelpCommand.hpp"
 
+#include <iomanip>
 #include <iostream>
 #include <memory>
 #include <string>
@@ -42,7 +43,7 @@ Expected<void> HelpCommand::execute(const AppContext&, const std::vector<std::st
 
     std::cout << "These are common Gitter command:\n\n\n";
     for (const auto& c : cmds) {
-        std::cout << "  " << c->name() << "\t" << c->description() << "\n";
+        std::cout << "  " << std::left << std::setw(15) << c->name() << c->description() << "\n";
     }
     return {};
 }

@@ -147,6 +147,18 @@ cmake --build build -j
 ./build/gitter help
 ```
 
+**Easy Usage**: After building, you can run `gitter` from anywhere:
+
+```bash
+# From project root
+./gitter init
+./gitter status
+./gitter add .
+./gitter commit -m "message"
+```
+
+The `gitter` wrapper script automatically finds the built executable in your build directories.
+
 ## Usage Examples
 
 ### Initialize Repository

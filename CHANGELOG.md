@@ -4,6 +4,21 @@ All notable changes to the Gitter project will be documented in this file.
 
 ## [Unreleased]
 
+### Changed - UI Improvements and Developer Experience (2025-11-02)
+
+#### Help Command Alignment
+- **Fixed Alignment**: Help command output now uses proper column alignment
+- **Readable Format**: Commands displayed with consistent 15-character width
+- **Professional Look**: Output matches Git's clean, tabular format
+- Uses `std::setw()` and `std::left` for consistent spacing
+
+#### Wrapper Script for Easy Access
+- **Root-Level Access**: Added `gitter` bash wrapper script at project root
+- **Auto-Discovery**: Automatically finds executable in build directories
+- **Priority Order**: Checks release build, then debug, then WSL fallback
+- **Cross-Platform**: Works on Linux and Windows (WSL)
+- **User-Friendly**: Run `./gitter` from anywhere without specifying build path
+
 ### Fixed - Special Characters in Filenames (2025-11-02)
 
 #### Git-Compatibility Feature
