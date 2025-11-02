@@ -191,8 +191,8 @@ Expected<void> CommitCommand::execute(const AppContext&, const std::vector<std::
     auto now = std::chrono::system_clock::now();
     auto timestamp = std::chrono::duration_cast<std::chrono::seconds>(now.time_since_epoch()).count();
     
-    commitContent << "author " << author << " <" << email << "> " << timestamp << " +0000\n";
-    commitContent << "committer " << author << " <" << email << "> " << timestamp << " +0000\n";
+    commitContent << "author " << author << " <" << email << "> " << timestamp << " +0530\n";
+    commitContent << "committer " << author << " <" << email << "> " << timestamp << " +0530\n";
     commitContent << "\n";
     commitContent << message << "\n";
     

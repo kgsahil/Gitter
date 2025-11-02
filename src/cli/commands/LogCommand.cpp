@@ -90,6 +90,11 @@ Expected<void> LogCommand::execute(const AppContext&, const std::vector<std::str
             }
             
             ++count;
+            
+            // Add blank line between commits (not after the last one)
+            if (!currentHash.empty() && count < maxCommits) {
+                std::cout << "\n";
+            }
         } catch (const std::exception& e) {
             std::cerr << "Error reading commit " << currentHash << ": " << e.what() << "\n";
             break;
