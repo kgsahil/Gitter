@@ -185,7 +185,8 @@ TEST_F(GitWorkflowTest, ModifyFileAfterCommit) {
     invoker.invoke(*addCmd, ctx, {"file1.txt"});
     invoker.invoke(*commitCmd, ctx, {"-m", "First commit"});
     
-    // Modify file
+    // Modify file - add delay to ensure mtime updates
+    std::this_thread::sleep_for(std::chrono::milliseconds(100));
     createFile(repoPath, "file1.txt", "modified content");
     
     // Check status - should show modified
@@ -985,7 +986,7 @@ TEST_F(GitWorkflowTest, ResetDoesNotModifyWorkingTree) {
     // Initialize repository
     invoker.invoke(*initCmd, ctx, {});
     
-    // Create two commits
+    // Create three commits
     createFile(repoPath, "file.txt", "v1");
     invoker.invoke(*addCmd, ctx, {"file.txt"});
     invoker.invoke(*commitCmd, ctx, {"-m", "First"});
@@ -994,17 +995,21 @@ TEST_F(GitWorkflowTest, ResetDoesNotModifyWorkingTree) {
     invoker.invoke(*addCmd, ctx, {"file.txt"});
     invoker.invoke(*commitCmd, ctx, {"-m", "Second"});
     
-    // Verify file contains v2
+    createFile(repoPath, "file.txt", "v3");
+    invoker.invoke(*addCmd, ctx, {"file.txt"});
+    invoker.invoke(*commitCmd, ctx, {"-m", "Third"});
+    
+    // Verify file contains v3
     EXPECT_TRUE(fs::exists(repoPath / "file.txt"));
     std::string content = readFile(repoPath / "file.txt");
-    EXPECT_EQ(content, "v2");
+    EXPECT_EQ(content, "v3");
     
     // Reset to HEAD~1
     invoker.invoke(*resetCmd, ctx, {"HEAD~1"});
     
-    // Verify file still contains v2 (working tree unchanged)
+    // Verify file still contains v3 (working tree unchanged)
     content = readFile(repoPath / "file.txt");
-    EXPECT_EQ(content, "v2");
+    EXPECT_EQ(content, "v3");
     
     // Verify status shows file as untracked (index was cleared)
     testing::internal::CaptureStdout();
@@ -1271,6 +1276,250 @@ TEST_F(GitWorkflowTest, CheckoutWithDivergentBranches) {
     invoker.invoke(*checkoutCmd, ctx, {"branch1"});
     EXPECT_TRUE(fs::exists(repoPath / "file1.txt"));
     EXPECT_FALSE(fs::exists(repoPath / "file2.txt"));
+}
+
+/**
+ * @brief Test: File modified after staging appears in both categories
+ * Edge case: Complex staging state
+ */
+TEST_F(GitWorkflowTest, FileModifiedAfterStagingShowsInBothCategories) {
+    // Initialize repository
+    auto initCmd = CommandFactory::instance().create("init");
+    invoker.invoke(*initCmd, ctx, {});
+    
+    auto addCmd = CommandFactory::instance().create("add");
+    auto commitCmd = CommandFactory::instance().create("commit");
+    auto statusCmd = CommandFactory::instance().create("status");
+    
+    // Stage file
+    createFile(repoPath, "file.txt", "v1");
+    invoker.invoke(*addCmd, ctx, {"file.txt"});
+    
+    // Modify after staging
+    std::this_thread::sleep_for(std::chrono::milliseconds(100)); // Ensure mtime differs
+    createFile(repoPath, "file.txt", "v2");
+    
+    // Status should show file in BOTH categories
+    testing::internal::CaptureStdout();
+    invoker.invoke(*statusCmd, ctx, {});
+    std::string status = testing::internal::GetCapturedStdout();
+    
+    // Count occurrences of "file.txt" in modified
+    size_t count = 0;
+    size_t pos = 0;
+    while ((pos = status.find("modified: file.txt", pos)) != std::string::npos) {
+        ++count;
+        pos += 1;
+    }
+    
+    EXPECT_GE(count, 1) << "File should appear at least once as modified";
+    EXPECT_NE(status.find("Changes to be committed"), std::string::npos);
+    EXPECT_NE(status.find("Changes not staged for commit"), std::string::npos);
+}
+
+/**
+ * @brief Test: Commit with Unicode filenames
+ * Edge case: International characters
+ */
+TEST_F(GitWorkflowTest, CommitWithUnicodeFilenames) {
+    // Initialize repository
+    auto initCmd = CommandFactory::instance().create("init");
+    invoker.invoke(*initCmd, ctx, {});
+    
+    auto addCmd = CommandFactory::instance().create("add");
+    auto commitCmd = CommandFactory::instance().create("commit");
+    auto logCmd = CommandFactory::instance().create("log");
+    
+    // Create files with Unicode names
+    createFile(repoPath, "文件.txt", "Chinese content");
+    createFile(repoPath, "مرحبا.py", "Arabic content");
+    createFile(repoPath, "тест.cpp", "Russian content");
+    
+    invoker.invoke(*addCmd, ctx, {"."});
+    auto result = invoker.invoke(*commitCmd, ctx, {"-m", "Add Unicode files"});
+    EXPECT_TRUE(result) << result.error().message;
+    
+    // Verify commit created
+    testing::internal::CaptureStdout();
+    invoker.invoke(*logCmd, ctx, {});
+    std::string log = testing::internal::GetCapturedStdout();
+    
+    EXPECT_NE(log.find("Add Unicode files"), std::string::npos);
+}
+
+/**
+ * @brief Test: Checkout with staged Unicode file modifications
+ * Edge case: Unicode filenames in complex checkout scenario
+ */
+TEST_F(GitWorkflowTest, CheckoutWithUnicodeFileStaging) {
+    // Initialize repository
+    auto initCmd = CommandFactory::instance().create("init");
+    invoker.invoke(*initCmd, ctx, {});
+    
+    auto addCmd = CommandFactory::instance().create("add");
+    auto commitCmd = CommandFactory::instance().create("commit");
+    auto checkoutCmd = CommandFactory::instance().create("checkout");
+    
+    // Create commit on main
+    createFile(repoPath, "文件.txt", "main version");
+    invoker.invoke(*addCmd, ctx, {"."});
+    invoker.invoke(*commitCmd, ctx, {"-m", "Initial"});
+    
+    // Create branch
+    invoker.invoke(*checkoutCmd, ctx, {"-b", "feature"});
+    
+    // Stage modification on feature
+    createFile(repoPath, "文件.txt", "feature version");
+    invoker.invoke(*addCmd, ctx, {"."});
+    
+    // Switch back to main
+    testing::internal::CaptureStdout();
+    invoker.invoke(*checkoutCmd, ctx, {"main"});
+    std::string output = testing::internal::GetCapturedStdout();
+    
+    EXPECT_NE(output.find("Switched to branch 'main'"), std::string::npos);
+    
+    // Verify file reverted
+    std::ifstream file(repoPath / "文件.txt");
+    std::string content;
+    std::getline(file, content);
+    EXPECT_EQ(content, "main version");
+}
+
+/**
+ * @brief Test: Large commit with many files
+ * Edge case: Performance and correctness with 100+ files
+ */
+TEST_F(GitWorkflowTest, LargeCommitWithManyFiles) {
+    // Initialize repository
+    auto initCmd = CommandFactory::instance().create("init");
+    invoker.invoke(*initCmd, ctx, {});
+    
+    auto addCmd = CommandFactory::instance().create("add");
+    auto commitCmd = CommandFactory::instance().create("commit");
+    auto statusCmd = CommandFactory::instance().create("status");
+    
+    // Create 100 files
+    for (int i = 0; i < 100; ++i) {
+        std::string filename = "file" + std::to_string(i) + ".txt";
+        createFile(repoPath, filename, "content " + std::to_string(i));
+    }
+    
+    invoker.invoke(*addCmd, ctx, {"."});
+    
+    // Commit should succeed
+    auto result = invoker.invoke(*commitCmd, ctx, {"-m", "Add 100 files"});
+    EXPECT_TRUE(result) << result.error().message;
+    
+    // Verify all files indexed
+    Index index;
+    index.load(tempDir);
+    EXPECT_EQ(index.entries().size(), 100);
+    
+    // Status should be clean
+    testing::internal::CaptureStdout();
+    invoker.invoke(*statusCmd, ctx, {});
+    std::string status = testing::internal::GetCapturedStdout();
+    
+    EXPECT_NE(status.find("nothing to commit, working tree clean"), std::string::npos);
+}
+
+/**
+ * @brief Test: Orphaned commits after reset
+ * Edge case: Objects remain accessible after reset
+ */
+TEST_F(GitWorkflowTest, OrphanedCommitsAfterReset) {
+    // Initialize repository
+    auto initCmd = CommandFactory::instance().create("init");
+    invoker.invoke(*initCmd, ctx, {});
+    
+    auto addCmd = CommandFactory::instance().create("add");
+    auto commitCmd = CommandFactory::instance().create("commit");
+    auto resetCmd = CommandFactory::instance().create("reset");
+    auto logCmd = CommandFactory::instance().create("log");
+    
+    // Create 3 commits
+    createFile(repoPath, "file.txt", "v1");
+    invoker.invoke(*addCmd, ctx, {"."});
+    invoker.invoke(*commitCmd, ctx, {"-m", "v1"});
+    
+    createFile(repoPath, "file.txt", "v2");
+    invoker.invoke(*addCmd, ctx, {"."});
+    auto result = invoker.invoke(*commitCmd, ctx, {"-m", "v2"});
+    EXPECT_TRUE(result);
+    
+    createFile(repoPath, "file.txt", "v3");
+    invoker.invoke(*addCmd, ctx, {"."});
+    result = invoker.invoke(*commitCmd, ctx, {"-m", "v3"});
+    EXPECT_TRUE(result);
+    
+    // Get commit hashes
+    auto headRes = Repository::resolveHEAD(repoPath);
+    ASSERT_TRUE(headRes);
+    auto [commit3Hash, _] = headRes.value();
+    
+    // Reset to commit2 (HEAD~1)
+    result = invoker.invoke(*resetCmd, ctx, {"HEAD~1"});
+    EXPECT_TRUE(result);
+    
+    // Verify commit3 still exists in objects/ (orphaned but not deleted)
+    ObjectStore store(repoPath);
+    EXPECT_NO_THROW(store.readCommit(commit3Hash));
+    
+    // Create new commit
+    createFile(repoPath, "file.txt", "v4");
+    invoker.invoke(*addCmd, ctx, {"."});
+    auto result4 = invoker.invoke(*commitCmd, ctx, {"-m", "v4"});
+    EXPECT_TRUE(result4);
+    
+    // Verify commit3's parent is not v4's parent
+    auto newHeadRes = Repository::resolveHEAD(repoPath);
+    ASSERT_TRUE(newHeadRes);
+    auto [commit4Hash, __] = newHeadRes.value();
+    
+    CommitObject c4 = store.readCommit(commit4Hash);
+    EXPECT_NE(c4.parentHashes[0], commit3Hash);
+}
+
+/**
+ * @brief Test: Status with Unicode filenames and complex states
+ * Edge case: Unicode in all three states (staged/modified/untracked)
+ */
+TEST_F(GitWorkflowTest, StatusUnicodeInAllStates) {
+    // Initialize repository
+    auto initCmd = CommandFactory::instance().create("init");
+    invoker.invoke(*initCmd, ctx, {});
+    
+    auto addCmd = CommandFactory::instance().create("add");
+    auto commitCmd = CommandFactory::instance().create("commit");
+    auto statusCmd = CommandFactory::instance().create("status");
+    
+    // Create and commit file
+    createFile(repoPath, "文件.txt", "v1");
+    invoker.invoke(*addCmd, ctx, {"."});
+    invoker.invoke(*commitCmd, ctx, {"-m", "Initial"});
+    
+    // Modify committed file
+    std::this_thread::sleep_for(std::chrono::milliseconds(100)); // Ensure mtime differs
+    createFile(repoPath, "文件.txt", "v2");
+    
+    // Stage new file
+    createFile(repoPath, "مرحبا.py", "new");
+    invoker.invoke(*addCmd, ctx, {"مرحبا.py"});
+    
+    // Create untracked file
+    createFile(repoPath, "тест.cpp", "untracked");
+    
+    testing::internal::CaptureStdout();
+    invoker.invoke(*statusCmd, ctx, {});
+    std::string status = testing::internal::GetCapturedStdout();
+    
+    EXPECT_NE(status.find("Changes to be committed"), std::string::npos);
+    EXPECT_NE(status.find("Changes not staged"), std::string::npos);
+    EXPECT_NE(status.find("Untracked files"), std::string::npos);
+    EXPECT_NE(status.find("مرحبا.py"), std::string::npos);
+    EXPECT_NE(status.find("文件.txt"), std::string::npos);
+    EXPECT_NE(status.find("тест.cpp"), std::string::npos);
 }
 
 } // namespace gitter::test

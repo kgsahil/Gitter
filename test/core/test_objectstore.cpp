@@ -3,6 +3,7 @@
 #include "test_utils.hpp"
 #include "core/ObjectStore.hpp"
 #include "core/CommitObject.hpp"
+#include "core/TreeBuilder.hpp"
 #include "util/Sha1Hasher.hpp"
 #include "util/Sha256Hasher.hpp"
 
@@ -240,5 +241,75 @@ TEST_F(ObjectStoreTest, EmptyBlob) {
     EXPECT_EQ(hash.length(), 40);
     fs::path objPath = store.getObjectPath(hash);
     EXPECT_TRUE(fs::exists(objPath));
+}
+
+// Test: Read corrupt blob (truncated zlib data)
+TEST_F(ObjectStoreTest, ReadCorruptBlobTruncated) {
+    ObjectStore store(tempDir);
+    
+    // Write valid blob first
+    std::string content = "test content";
+    std::string hash = store.writeBlob(content);
+    
+    // Corrupt it by truncating
+    fs::path objPath = store.getObjectPath(hash);
+    std::ofstream out(objPath, std::ios::binary | std::ios::trunc);
+    out.write("blob", 4);  // Write incomplete data
+    out.close();
+    
+    // Reading should throw
+    EXPECT_THROW({
+        std::string result = store.readBlob(hash);
+    }, std::exception);
+}
+
+// Test: Read corrupt commit (invalid format)
+TEST_F(ObjectStoreTest, ReadCorruptCommitInvalidFormat) {
+    ObjectStore store(tempDir);
+    
+    // Create a blob and read it as a commit
+    std::string content = "not a commit";
+    std::string hash = store.writeBlob(content);
+    
+    // Reading as commit should throw
+    EXPECT_THROW({
+        CommitObject c = store.readCommit(hash);
+    }, std::exception);
+}
+
+// Test: Read corrupt tree (invalid format)
+TEST_F(ObjectStoreTest, ReadCorruptTreeInvalidFormat) {
+    ObjectStore store(tempDir);
+    
+    // Create a blob and read it as a tree
+    std::string content = "invalid tree format";
+    std::string hash = store.writeBlob(content);
+    
+    // Reading as tree should throw
+    EXPECT_THROW({
+        std::vector<TreeEntry> result = store.readTree(hash);
+    }, std::exception);
+}
+
+// Test: Read non-existent object
+TEST_F(ObjectStoreTest, ReadNonExistentBlob) {
+    ObjectStore store(tempDir);
+    
+    std::string fakeHash = "0000000000000000000000000000000000000000";
+    
+    EXPECT_THROW({
+        std::string result = store.readBlob(fakeHash);
+    }, std::exception);
+}
+
+// Test: Read non-existent commit
+TEST_F(ObjectStoreTest, ReadNonExistentCommit) {
+    ObjectStore store(tempDir);
+    
+    std::string fakeHash = "0000000000000000000000000000000000000001";
+    
+    EXPECT_THROW({
+        CommitObject c = store.readCommit(fakeHash);
+    }, std::exception);
 }
 

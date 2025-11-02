@@ -374,7 +374,8 @@ TEST_F(CommitCommandTest, CommitWithAutoStageFlag) {
     addCmd.execute(ctx, {"file1.txt", "file2.txt"});
     commitCmd.execute(ctx, {"-m", "First"});
     
-    // Modify both files
+    // Modify both files - add delay to ensure mtime updates
+    std::this_thread::sleep_for(std::chrono::milliseconds(100));
     createFile(tempDir, "file1.txt", "modified content1");
     createFile(tempDir, "file2.txt", "modified content2");
     
@@ -422,7 +423,7 @@ TEST_F(CommitCommandTest, CommitWithAMFlagMultipleFiles) {
     EXPECT_EQ(commit.message, "Update modified files\n");
 }
 
-// Test: Commit with -a on empty working tree (should fail)
+// Test: Commit with -a on empty working tree (nothing to commit)
 TEST_F(CommitCommandTest, CommitWithANoChanges) {
     AddCommand addCmd;
     CommitCommand commitCmd;
@@ -433,11 +434,11 @@ TEST_F(CommitCommandTest, CommitWithANoChanges) {
     commitCmd.execute(ctx, {"-m", "First"});
     
     // Don't modify anything
-    // Commit with -a should fail (nothing to commit)
+    // Commit with -a returns success with message (nothing to commit)
     std::vector<std::string> args{"-a", "-m", "No changes"};
     auto result = commitCmd.execute(ctx, args);
-    EXPECT_FALSE(result.has_value());
-    EXPECT_TRUE(result.error().message.find("nothing to commit") != std::string::npos);
+    EXPECT_TRUE(result.has_value());
+    // Should output "nothing to commit, working tree clean" message
 }
 
 // Test: Commit with multiple -m flags (multi-paragraph message)

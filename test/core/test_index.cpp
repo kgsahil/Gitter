@@ -10,6 +10,32 @@ namespace fs = std::filesystem;
 using namespace gitter;
 using namespace gitter::test::utils;
 
+// Helper function for base64 encoding (simplified version matching Index.cpp)
+static std::string base64Encode(const std::string& input) {
+    const char chars[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+    std::string encoded;
+    int val = 0, valb = -6;
+    
+    for (unsigned char c : input) {
+        val = (val << 8) + c;
+        valb += 8;
+        while (valb >= 0) {
+            encoded.push_back(chars[(val >> valb) & 0x3F]);
+            valb -= 6;
+        }
+    }
+    
+    if (valb > -6) {
+        encoded.push_back(chars[((val << 8) >> (valb + 8)) & 0x3F]);
+    }
+    
+    while (encoded.size() % 4) {
+        encoded.push_back('=');
+    }
+    
+    return encoded;
+}
+
 class IndexTest : public ::testing::Test {
 protected:
     void SetUp() override {
@@ -209,5 +235,99 @@ TEST_F(IndexTest, IndexWithTimestamps) {
     
     EXPECT_EQ(index2.entries().at("file.txt").mtimeNs, 1234567890123456789ULL);
     EXPECT_EQ(index2.entries().at("file.txt").ctimeNs, 9876543210987654321ULL);
+}
+
+// Test: Load corrupt index with empty file
+TEST_F(IndexTest, LoadCorruptIndexEmptyFile) {
+    Index index;
+    
+    // Create empty index file
+    fs::path indexPath = tempDir / ".gitter" / "index";
+    std::ofstream out(indexPath);
+    out.close();
+    
+    // Should load successfully with no entries
+    bool result = index.load(tempDir);
+    EXPECT_TRUE(result);
+    EXPECT_TRUE(index.entries().empty());
+}
+
+// Test: Load corrupt index with truncated line
+TEST_F(IndexTest, LoadCorruptIndexTruncatedLine) {
+    Index index;
+    
+    // Write index with incomplete entry (missing fields)
+    fs::path indexPath = tempDir / ".gitter" / "index";
+    std::ofstream out(indexPath, std::ios::binary);
+    out << "file.txt\tabc123";  // Missing fields
+    out.close();
+    
+    // Should skip invalid entry
+    bool result = index.load(tempDir);
+    EXPECT_TRUE(result);
+    EXPECT_TRUE(index.entries().empty());
+}
+
+// Test: Load corrupt index with invalid hash format
+TEST_F(IndexTest, LoadCorruptIndexInvalidHash) {
+    Index index;
+    
+    // Write index with invalid hash
+    fs::path indexPath = tempDir / ".gitter" / "index";
+    std::ofstream out(indexPath, std::ios::binary);
+    out << "file.txt\tinvalid_hash_123\t1024\t1234567890\t33188\t1234567890\n";
+    out.close();
+    
+    // Should skip entry with invalid hash format
+    bool result = index.load(tempDir);
+    EXPECT_TRUE(result);
+    EXPECT_TRUE(index.entries().empty());
+}
+
+// Test: Load corrupt index with invalid numeric field
+TEST_F(IndexTest, LoadCorruptIndexInvalidNumeric) {
+    Index index;
+    
+    // Write index with non-numeric size
+    fs::path indexPath = tempDir / ".gitter" / "index";
+    std::ofstream out(indexPath, std::ios::binary);
+    out << "file.txt\tabc123def4567890123456789012345678901234\tnot_a_number\t1234567890\t33188\t1234567890\n";
+    out.close();
+    
+    // Should skip entry with invalid numeric fields
+    bool result = index.load(tempDir);
+    EXPECT_TRUE(result);
+    EXPECT_TRUE(index.entries().empty());
+}
+
+// Test: Load corrupt index with valid entries mixed with corrupt entries
+TEST_F(IndexTest, LoadCorruptIndexMixedValidAndCorrupt) {
+    Index index;
+    
+    // Write index with both valid and corrupt entries
+    fs::path indexPath = tempDir / ".gitter" / "index";
+    std::ofstream out(indexPath, std::ios::binary);
+    
+    // Valid entry
+    std::string validPath = base64Encode("good.txt");
+    out << validPath << "\tabc123def4567890123456789012345678901234\t1024\t1234567890\t33188\t1234567890\n";
+    
+    // Corrupt entry (invalid hash)
+    std::string corruptPath = base64Encode("bad.txt");
+    out << corruptPath << "\tbad_hash\t1024\t1234567890\t33188\t1234567890\n";
+    
+    // Another valid entry
+    std::string validPath2 = base64Encode("good2.txt");
+    out << validPath2 << "\tdef456abc1237890123456789012345678901234\t2048\t1234567890\t33188\t1234567890\n";
+    
+    out.close();
+    
+    // Should load only valid entries
+    bool result = index.load(tempDir);
+    EXPECT_TRUE(result);
+    EXPECT_EQ(index.entries().size(), 2);
+    EXPECT_TRUE(index.entries().find("good.txt") != index.entries().end());
+    EXPECT_TRUE(index.entries().find("good2.txt") != index.entries().end());
+    EXPECT_TRUE(index.entries().find("bad.txt") == index.entries().end());
 }
 

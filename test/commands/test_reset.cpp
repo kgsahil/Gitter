@@ -81,6 +81,19 @@ std::string getHEAD(const fs::path& root) {
     return headContent;
 }
 
+// Helper: Get parent commit hash
+std::string getParentCommit(const fs::path& root, const std::string& commitHash) {
+    ObjectStore store(root);
+    try {
+        CommitObject commit = store.readCommit(commitHash);
+        if (!commit.parentHashes.empty()) {
+            return commit.parentHashes[0];
+        }
+    } catch (const std::exception&) {
+    }
+    return "";
+}
+
 // Test: Reset with no arguments (should fail)
 TEST_F(ResetCommandTest, ResetNoArgs) {
     AddCommand addCmd;
@@ -310,10 +323,12 @@ TEST_F(ResetCommandTest, ResetCheckLog) {
     addCmd.execute(ctx, {"file.txt"});
     commitCmd.execute(ctx, {"-m", "First"});
     
+    std::this_thread::sleep_for(std::chrono::milliseconds(100));
     createFile(tempDir, "file.txt", "content2");
     addCmd.execute(ctx, {"file.txt"});
     commitCmd.execute(ctx, {"-m", "Second"});
     
+    std::this_thread::sleep_for(std::chrono::milliseconds(100));
     createFile(tempDir, "file.txt", "content3");
     addCmd.execute(ctx, {"file.txt"});
     commitCmd.execute(ctx, {"-m", "Third"});
@@ -338,3 +353,156 @@ TEST_F(ResetCommandTest, ResetCheckLog) {
     EXPECT_EQ(outputAfter.find("Third"), std::string::npos); // Third should be gone
 }
 
+// Test: Reset with multiple files in commits
+TEST_F(ResetCommandTest, ResetMultipleFiles) {
+    AddCommand addCmd;
+    CommitCommand commitCmd;
+    ResetCommand resetCmd;
+    
+    // Create first commit with file1
+    createFile(tempDir, "file1.txt", "content1");
+    addCmd.execute(ctx, {"file1.txt"});
+    commitCmd.execute(ctx, {"-m", "First"});
+    std::string firstHash = getHEAD(tempDir);
+    
+    // Create second commit with file1 and file2
+    std::this_thread::sleep_for(std::chrono::milliseconds(100));
+    createFile(tempDir, "file1.txt", "content1-mod");
+    createFile(tempDir, "file2.txt", "content2");
+    addCmd.execute(ctx, {"file1.txt", "file2.txt"});
+    commitCmd.execute(ctx, {"-m", "Second"});
+    
+    // Reset to first commit
+    auto result = resetCmd.execute(ctx, {"HEAD~1"});
+    EXPECT_TRUE(result.has_value());
+    
+    std::string resetHash = getHEAD(tempDir);
+    EXPECT_EQ(firstHash, resetHash);
+    
+    // Verify file2 still exists in working tree but is not in index
+    EXPECT_TRUE(fs::exists(tempDir / "file2.txt"));
+    Index index;
+    index.load(tempDir);
+    EXPECT_TRUE(index.entries().empty());
+}
+
+// Test: Reset preserves objects in object store
+TEST_F(ResetCommandTest, ResetPreservesObjects) {
+    AddCommand addCmd;
+    CommitCommand commitCmd;
+    ResetCommand resetCmd;
+    ObjectStore store(tempDir);
+    
+    // Create first commit
+    createFile(tempDir, "file.txt", "content1");
+    addCmd.execute(ctx, {"file.txt"});
+    commitCmd.execute(ctx, {"-m", "First"});
+    std::string firstHash = getHEAD(tempDir);
+    
+    // Create second commit
+    std::this_thread::sleep_for(std::chrono::milliseconds(100));
+    createFile(tempDir, "file.txt", "content2");
+    addCmd.execute(ctx, {"file.txt"});
+    commitCmd.execute(ctx, {"-m", "Second"});
+    std::string secondHash = getHEAD(tempDir);
+    
+    // Read commit2 object before reset
+    CommitObject commit2Before = store.readCommit(secondHash);
+    
+    // Reset to first commit
+    auto result = resetCmd.execute(ctx, {"HEAD~1"});
+    EXPECT_TRUE(result.has_value());
+    
+    // Verify commit2 object still exists (orphaned but not deleted)
+    CommitObject commit2After = store.readCommit(secondHash);
+    EXPECT_EQ(commit2Before.hash, commit2After.hash);
+    EXPECT_EQ(commit2Before.message, commit2After.message);
+}
+
+// Test: Reset to very old commit (many steps back)
+TEST_F(ResetCommandTest, ResetManyStepsBack) {
+    AddCommand addCmd;
+    CommitCommand commitCmd;
+    ResetCommand resetCmd;
+    
+    // Create 5 commits
+    for (int i = 1; i <= 5; ++i) {
+        std::this_thread::sleep_for(std::chrono::milliseconds(100));
+        createFile(tempDir, "file.txt", "content" + std::to_string(i));
+        addCmd.execute(ctx, {"file.txt"});
+        commitCmd.execute(ctx, {"-m", "Commit " + std::to_string(i)});
+    }
+    
+    std::string firstHash = getHEAD(tempDir);
+    for (int i = 0; i < 4; ++i) {
+        firstHash = getParentCommit(tempDir, firstHash);
+    }
+    
+    // Reset to HEAD~4
+    auto result = resetCmd.execute(ctx, {"HEAD~4"});
+    EXPECT_TRUE(result.has_value());
+    
+    std::string resetHash = getHEAD(tempDir);
+    EXPECT_EQ(firstHash, resetHash);
+}
+
+// Test: Reset with staged files in index
+TEST_F(ResetCommandTest, ResetWithStagedFiles) {
+    AddCommand addCmd;
+    CommitCommand commitCmd;
+    ResetCommand resetCmd;
+    
+    // Create two commits
+    createFile(tempDir, "file1.txt", "content1");
+    addCmd.execute(ctx, {"file1.txt"});
+    commitCmd.execute(ctx, {"-m", "First"});
+    std::string firstHash = getHEAD(tempDir);
+    
+    std::this_thread::sleep_for(std::chrono::milliseconds(100));
+    createFile(tempDir, "file1.txt", "content2");
+    addCmd.execute(ctx, {"file1.txt"});
+    commitCmd.execute(ctx, {"-m", "Second"});
+    
+    // Stage a new file but don't commit
+    createFile(tempDir, "file2.txt", "content");
+    addCmd.execute(ctx, {"file2.txt"});
+    
+    // Verify file2 is in index
+    Index index;
+    index.load(tempDir);
+    EXPECT_TRUE(index.entries().find("file2.txt") != index.entries().end());
+    
+    // Reset to first commit (should clear file2 from index)
+    auto result = resetCmd.execute(ctx, {"HEAD~1"});
+    EXPECT_TRUE(result.has_value());
+    
+    std::string resetHash = getHEAD(tempDir);
+    EXPECT_EQ(firstHash, resetHash);
+    
+    // Verify file2 is removed from index
+    index.load(tempDir);
+    EXPECT_TRUE(index.entries().empty());
+    
+    // Verify file2 still exists in working tree
+    EXPECT_TRUE(fs::exists(tempDir / "file2.txt"));
+}
+
+// Test: Reset HEAD~0 (same as HEAD)
+TEST_F(ResetCommandTest, ResetZeroSteps) {
+    AddCommand addCmd;
+    CommitCommand commitCmd;
+    ResetCommand resetCmd;
+    
+    createFile(tempDir, "file.txt", "content");
+    addCmd.execute(ctx, {"file.txt"});
+    commitCmd.execute(ctx, {"-m", "Initial"});
+    
+    std::string originalHash = getHEAD(tempDir);
+    
+    // Reset to HEAD~0 should do nothing
+    auto result = resetCmd.execute(ctx, {"HEAD~0"});
+    EXPECT_TRUE(result.has_value());
+    
+    std::string finalHash = getHEAD(tempDir);
+    EXPECT_EQ(originalHash, finalHash);
+}

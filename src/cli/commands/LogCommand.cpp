@@ -101,6 +101,8 @@ Expected<void> LogCommand::execute(const AppContext&, const std::vector<std::str
         std::cout << "`your current branch does not have any commits yet`\n";
     }
     
+    std::cout.flush();  // Ensure output is visible when captured
+    
     return {};
 }
 

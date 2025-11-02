@@ -183,6 +183,7 @@ TEST_F(StatusCommandTest, StatusStagedAndModified) {
     commitCmd.execute(ctx, {"-m", "Initial"});
     
     // Modify and stage
+    std::this_thread::sleep_for(std::chrono::milliseconds(100)); // Ensure mtime differs
     createFile(tempDir, "file.txt", "content2");
     addCmd.execute(ctx, {"file.txt"});
     
@@ -303,7 +304,8 @@ TEST_F(StatusCommandTest, StatusWithEmptyFile) {
     addCmd.execute(ctx, {"empty.txt"});
     commitCmd.execute(ctx, {"-m", "Initial"});
     
-    // Modify empty file
+    // Modify empty file - add delay to ensure mtime updates
+    std::this_thread::sleep_for(std::chrono::milliseconds(100));
     createFile(tempDir, "empty.txt", "now has content");
     
     clearOutput();
@@ -329,6 +331,7 @@ TEST_F(StatusCommandTest, StatusWithBinaryFile) {
     commitCmd.execute(ctx, {"-m", "Initial"});
     
     // Modify binary
+    std::this_thread::sleep_for(std::chrono::milliseconds(100)); // Ensure mtime differs
     std::ofstream bin2(binFile, std::ios::binary);
     bin2.write("\x00\x01\x02\x03\xff\xfe\xfc", 7);
     bin2.close();
@@ -352,9 +355,11 @@ TEST_F(StatusCommandTest, StatusAllStatesCombined) {
     commitCmd.execute(ctx, {"-m", "Initial"});
     
     // Create various states
+    std::this_thread::sleep_for(std::chrono::milliseconds(100)); // Ensure mtime differs
     createFile(tempDir, "tracked1.txt", "modified1"); // Modified
     createFile(tempDir, "tracked2.txt", "content2"); // New tracked (will add)
     addCmd.execute(ctx, {"tracked2.txt"}); // Staged
+    std::this_thread::sleep_for(std::chrono::milliseconds(100)); // Ensure mtime differs
     createFile(tempDir, "tracked2.txt", "modified2"); // Modified after staging
     createFile(tempDir, "untracked.txt", "untracked"); // Untracked
     fs::remove(tempDir / "tracked1.txt"); // Deleted
@@ -369,5 +374,66 @@ TEST_F(StatusCommandTest, StatusAllStatesCombined) {
     EXPECT_NE(output.find("Untracked files"), std::string::npos);
     EXPECT_NE(output.find("deleted:  tracked1.txt"), std::string::npos); // StatusCommand uses two spaces
     EXPECT_NE(output.find("modified: tracked2.txt"), std::string::npos);
+}
+
+// Test: Status with empty directory (should not show as untracked)
+TEST_F(StatusCommandTest, StatusWithEmptyDirectory) {
+    StatusCommand statusCmd;
+    
+    // Create empty directory
+    fs::create_directories(tempDir / "empty_dir");
+    
+    clearOutput();
+    statusCmd.execute(ctx, {});
+    
+    std::string output = getOutput();
+    // Should not show empty_dir as untracked
+    EXPECT_EQ(output.find("empty_dir"), std::string::npos);
+}
+
+// Test: Status with Unicode filenames
+TEST_F(StatusCommandTest, StatusWithUnicodeFiles) {
+    AddCommand addCmd;
+    CommitCommand commitCmd;
+    StatusCommand statusCmd;
+    
+    // Create and commit Unicode file
+    createFile(tempDir, "文件.txt", "Chinese content");
+    addCmd.execute(ctx, {"文件.txt"});
+    commitCmd.execute(ctx, {"-m", "Add Unicode file"});
+    
+    // Modify it
+    createFile(tempDir, "文件.txt", "Modified Chinese content");
+    
+    clearOutput();
+    statusCmd.execute(ctx, {});
+    
+    std::string output = getOutput();
+    EXPECT_NE(output.find("modified: 文件.txt"), std::string::npos);
+}
+
+// Test: Status with multiple Unicode files in different states
+TEST_F(StatusCommandTest, StatusMultipleUnicodeStates) {
+    AddCommand addCmd;
+    CommitCommand commitCmd;
+    StatusCommand statusCmd;
+    
+    // Create and commit one file
+    createFile(tempDir, "文件.txt", "Chinese");
+    addCmd.execute(ctx, {"文件.txt"});
+    commitCmd.execute(ctx, {"-m", "Initial"});
+    
+    // Modify it
+    createFile(tempDir, "文件.txt", "Modified");
+    
+    // Create new untracked Unicode file
+    createFile(tempDir, "مرحبا.py", "Arabic");
+    
+    clearOutput();
+    statusCmd.execute(ctx, {});
+    
+    std::string output = getOutput();
+    EXPECT_NE(output.find("modified: 文件.txt"), std::string::npos);
+    EXPECT_NE(output.find("مرحبا.py"), std::string::npos);
 }
 

@@ -488,4 +488,203 @@ TEST_F(AddCommandTest, IndexRoundTripSpecialCharacters) {
     EXPECT_EQ(hash1, hash2);
 }
 
+// Test: Add empty directory (should skip - Git doesn't track empty dirs)
+TEST_F(AddCommandTest, AddEmptyDirectory) {
+    AddCommand cmd;
+    
+    // Create empty directory
+    fs::create_directories(tempDir / "empty_dir");
+    
+    std::vector<std::string> args{"empty_dir"};
+    auto result = cmd.execute(ctx, args);
+    
+    // Should succeed but not add anything
+    ASSERT_TRUE(result.has_value()) << result.error().message;
+    
+    Index index;
+    index.load(tempDir);
+    const auto& entries = index.entries();
+    
+    // Should be empty (no files to track)
+    EXPECT_EQ(entries.size(), 0);
+}
+
+// Test: Add directory with only empty subdirectories
+TEST_F(AddCommandTest, AddDirectoryWithOnlyEmptySubdirs) {
+    AddCommand cmd;
+    
+    // Create nested empty directories
+    fs::create_directories(tempDir / "dir1" / "dir2" / "dir3");
+    
+    std::vector<std::string> args{"dir1"};
+    auto result = cmd.execute(ctx, args);
+    
+    ASSERT_TRUE(result.has_value()) << result.error().message;
+    
+    Index index;
+    index.load(tempDir);
+    const auto& entries = index.entries();
+    
+    // No files, so index should be empty
+    EXPECT_EQ(entries.size(), 0);
+}
+
+// Test: Add file with Unicode characters in filename (Chinese)
+TEST_F(AddCommandTest, AddFileWithUnicodeChinese) {
+    AddCommand cmd;
+    
+    // Create file with Chinese characters
+    std::string unicodeFile = "文件.txt";
+    createFile(tempDir, unicodeFile, "Chinese content");
+    
+    std::vector<std::string> args{unicodeFile};
+    auto result = cmd.execute(ctx, args);
+    ASSERT_TRUE(result.has_value()) << result.error().message;
+    
+    Index index;
+    index.load(tempDir);
+    const auto& entries = index.entries();
+    EXPECT_EQ(entries.size(), 1);
+    EXPECT_TRUE(entries.find(unicodeFile) != entries.end());
+}
+
+// Test: Add file with Unicode characters in filename (Arabic)
+TEST_F(AddCommandTest, AddFileWithUnicodeArabic) {
+    AddCommand cmd;
+    
+    std::string unicodeFile = "مرحبا.py";
+    createFile(tempDir, unicodeFile, "Arabic content");
+    
+    std::vector<std::string> args{unicodeFile};
+    auto result = cmd.execute(ctx, args);
+    ASSERT_TRUE(result.has_value()) << result.error().message;
+    
+    Index index;
+    index.load(tempDir);
+    const auto& entries = index.entries();
+    EXPECT_EQ(entries.size(), 1);
+    EXPECT_TRUE(entries.find(unicodeFile) != entries.end());
+}
+
+// Test: Add file with Unicode characters in filename (Russian)
+TEST_F(AddCommandTest, AddFileWithUnicodeRussian) {
+    AddCommand cmd;
+    
+    std::string unicodeFile = "тест.cpp";
+    createFile(tempDir, unicodeFile, "int main() {}");
+    
+    std::vector<std::string> args{unicodeFile};
+    auto result = cmd.execute(ctx, args);
+    ASSERT_TRUE(result.has_value()) << result.error().message;
+    
+    Index index;
+    index.load(tempDir);
+    const auto& entries = index.entries();
+    EXPECT_EQ(entries.size(), 1);
+    EXPECT_TRUE(entries.find(unicodeFile) != entries.end());
+}
+
+// Test: Add file with emoji in filename
+TEST_F(AddCommandTest, AddFileWithEmoji) {
+    AddCommand cmd;
+    
+    std::string unicodeFile = "文件📄.txt";
+    createFile(tempDir, unicodeFile, "emoji content");
+    
+    std::vector<std::string> args{unicodeFile};
+    auto result = cmd.execute(ctx, args);
+    ASSERT_TRUE(result.has_value()) << result.error().message;
+    
+    Index index;
+    index.load(tempDir);
+    const auto& entries = index.entries();
+    EXPECT_EQ(entries.size(), 1);
+    EXPECT_TRUE(entries.find(unicodeFile) != entries.end());
+}
+
+// Test: Add multiple files with mixed Unicode characters
+TEST_F(AddCommandTest, AddMultipleUnicodeFiles) {
+    AddCommand cmd;
+    
+    createFile(tempDir, "文件.txt", "Chinese");
+    createFile(tempDir, "مرحبا.py", "Arabic");
+    createFile(tempDir, "тест.cpp", "Russian");
+    createFile(tempDir, "file📄.txt", "emoji");
+    
+    std::vector<std::string> args{"."};
+    auto result = cmd.execute(ctx, args);
+    ASSERT_TRUE(result.has_value()) << result.error().message;
+    
+    Index index;
+    index.load(tempDir);
+    const auto& entries = index.entries();
+    EXPECT_EQ(entries.size(), 4);
+    EXPECT_TRUE(entries.find("文件.txt") != entries.end());
+    EXPECT_TRUE(entries.find("مرحبا.py") != entries.end());
+    EXPECT_TRUE(entries.find("тест.cpp") != entries.end());
+    EXPECT_TRUE(entries.find("file📄.txt") != entries.end());
+}
+
+// Test: Add large binary file (10MB)
+TEST_F(AddCommandTest, AddLargeBinaryFile) {
+    AddCommand cmd;
+    
+    // Create 10MB file
+    fs::path largeFile = tempDir / "large.bin";
+    std::ofstream out(largeFile, std::ios::binary);
+    
+    const size_t size = 10 * 1024 * 1024; // 10MB
+    std::vector<char> buffer(1024 * 1024, 0x42); // 1MB of 0x42
+    
+    for (size_t i = 0; i < 10; ++i) {
+        out.write(buffer.data(), buffer.size());
+    }
+    out.close();
+    
+    std::vector<std::string> args{"large.bin"};
+    auto result = cmd.execute(ctx, args);
+    ASSERT_TRUE(result.has_value()) << result.error().message;
+    
+    // Verify file added to index
+    Index index;
+    index.load(tempDir);
+    const auto& entries = index.entries();
+    EXPECT_EQ(entries.size(), 1);
+    EXPECT_TRUE(entries.find("large.bin") != entries.end());
+    
+    // Verify size is correct
+    auto entry = entries.at("large.bin");
+    EXPECT_EQ(entry.sizeBytes, size);
+    EXPECT_EQ(entry.hashHex.length(), 40); // SHA-1 hash
+}
+
+// Test: Add file with null bytes in content
+TEST_F(AddCommandTest, AddFileWithNullBytes) {
+    AddCommand cmd;
+    
+    fs::path file = tempDir / "nulls.bin";
+    std::ofstream out(file, std::ios::binary);
+    
+    // Write content with null bytes
+    out.write("header\0", 7);
+    out.write("body\0", 5);
+    out.write("footer", 6);
+    out.close();
+    
+    std::vector<std::string> args{"nulls.bin"};
+    auto result = cmd.execute(ctx, args);
+    ASSERT_TRUE(result.has_value()) << result.error().message;
+    
+    Index index;
+    index.load(tempDir);
+    const auto& entries = index.entries();
+    EXPECT_EQ(entries.size(), 1);
+    
+    // Verify we can read it back correctly
+    ObjectStore store(tempDir);
+    auto entry = entries.at("nulls.bin");
+    std::string content = store.readBlob(entry.hashHex);
+    EXPECT_EQ(content.length(), 18); // 7 + 5 + 6
+}
+
 
