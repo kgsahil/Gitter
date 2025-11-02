@@ -1,0 +1,43 @@
+#!/bin/bash
+
+# Gitter CLI Wrapper Script
+# Allows running gitter from project root without specifying build directory
+
+# Get the directory where this script is located
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# Look for gitter executable in build directories (in order of preference)
+GITTER_EXEC=""
+
+# Try local builds first
+if [ -f "$SCRIPT_DIR/build/linux-release/gitter" ]; then
+    GITTER_EXEC="$SCRIPT_DIR/build/linux-release/gitter"
+elif [ -f "$SCRIPT_DIR/build/linux-debug/gitter" ]; then
+    GITTER_EXEC="$SCRIPT_DIR/build/linux-debug/gitter"
+elif [ -f "$SCRIPT_DIR/build/windows-release/gitter.exe" ]; then
+    GITTER_EXEC="$SCRIPT_DIR/build/windows-release/gitter.exe"
+elif [ -f "$SCRIPT_DIR/build/windows-debug/gitter.exe" ]; then
+    GITTER_EXEC="$SCRIPT_DIR/build/windows-debug/gitter.exe"
+fi
+
+# Fallback to WSL build location if not found locally (for Windows WSL interop)
+if [ -z "$GITTER_EXEC" ] && [ -d "/home/Sahil/.vs/Gitter" ]; then
+    if [ -f "/home/Sahil/.vs/Gitter/build/linux-release/gitter" ]; then
+        GITTER_EXEC="/home/Sahil/.vs/Gitter/build/linux-release/gitter"
+    elif [ -f "/home/Sahil/.vs/Gitter/build/linux-debug/gitter" ]; then
+        GITTER_EXEC="/home/Sahil/.vs/Gitter/build/linux-debug/gitter"
+    fi
+fi
+
+# If no executable found, show error
+if [ -z "$GITTER_EXEC" ]; then
+    echo "Error: gitter executable not found." >&2
+    echo "Please build the project first:" >&2
+    echo "  cmake --preset linux-debug && cmake --build build/linux-debug" >&2
+    echo "or:" >&2
+    echo "  cmake --preset linux-release && cmake --build build/linux-release" >&2
+    exit 1
+fi
+
+# Execute gitter with all arguments passed through
+exec "$GITTER_EXEC" "$@"
