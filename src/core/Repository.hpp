@@ -1,7 +1,6 @@
 #pragma once
 
 #include <filesystem>
-#include <mutex>
 #include <string>
 #include <vector>
 
@@ -13,8 +12,8 @@ namespace gitter {
  * @brief Repository singleton - manages .gitter directory and global repo state
  * 
  * Provides high-level repository operations like initialization and root discovery.
- * Uses Singleton pattern to ensure a single instance manages the repository state
- * across all commands.
+ * Uses Singleton pattern to ensure consistent state management across all commands.
+ * Most operations are static utility methods that work with a given repository root.
  * 
  * Repository layout:
  *   .gitter/
@@ -55,12 +54,6 @@ public:
      * Walks up the directory tree until .gitter/ is found or root is reached.
      */
     Expected<std::filesystem::path> discoverRoot(const std::filesystem::path& start) const;
-
-    /// Get repository root path (must call discoverRoot or init first)
-    const std::filesystem::path& root() const { return rootPath; }
-    
-    /// Get .gitter directory path
-    std::filesystem::path gitterDir() const { return rootPath / ".gitter"; }
     
     /**
      * @brief Resolve HEAD to commit hash
@@ -145,8 +138,6 @@ public:
 
 private:
     Repository() = default;
-    std::filesystem::path rootPath{};  // Repository root directory
-    mutable std::mutex mtx;             // Thread-safety for init operations
 };
 
 }

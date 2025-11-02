@@ -13,7 +13,6 @@ Repository& Repository::instance() {
 }
 
 Expected<void> Repository::init(const fs::path& path) {
-    std::scoped_lock lock(mtx);
     fs::path root = fs::absolute(path);
     fs::path gd = root / ".gitter";
     if (fs::exists(gd)) {
@@ -31,7 +30,6 @@ Expected<void> Repository::init(const fs::path& path) {
         head << "ref: refs/heads/main\n";
     }
     // Don't create main ref file yet - Git creates it only on first commit
-    rootPath = root;
     return {};
 }
 
