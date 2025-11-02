@@ -47,10 +47,6 @@ Expected<void> LogCommand::execute(const AppContext&, const std::vector<std::str
     }
     
     auto [currentHash, branchRef] = headRes.value();
-    if (currentHash.empty()) {
-        std::cout << "`your current branch does not have any commits yet`\n";
-        return {};
-    }
     
     // Traverse commit chain and display
     ObjectStore store(root);
