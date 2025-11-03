@@ -411,9 +411,3 @@ DerivedData/
 
 ## Docker
 docker-demo/
-
-## Generated Documentation (can be regenerated)
-GITTER_COMPLETE_DOCS_NO_TOC.md
-GITTER_COMPLETE_DOCS_PDF*.md
-GITTER_COMPLETE_DOCS.pdf
-GITTER_DOCUMENTATION.md
