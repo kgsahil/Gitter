@@ -2,7 +2,7 @@
 
 ## Overview
 
-Gitter has comprehensive test coverage with **205 tests** covering all major components.
+Gitter has comprehensive test coverage with **238 tests** covering all major components.
 
 ## Why Separate Coverage Build?
 
@@ -70,12 +70,12 @@ From gcov analysis:
 
 ### Test Distribution
 
-- **Commands**: ~205 tests
-  - Init, Add, Commit (with special character filename support), Status, Log (18 tests), Restore, Reset, Checkout (23 tests: 13 unit + 10 integration), CatFile, Help
-- **Core**: ~40 tests
-  - Repository, Index (with base64 path encoding), ObjectStore, TreeBuilder
+- **Commands**: ~188 tests
+  - Init (9 tests), Add (29 tests), Commit (17 tests), Status (17 tests), Log (18 tests), Restore (13 tests), Reset (16 tests), Checkout (23 tests: 13 unit + 10 integration), CatFile, Help
+- **Core**: ~50 tests
+  - Repository (8 tests), Index (14 tests), ObjectStore (14 tests), TreeBuilder (9 tests)
 - **Util**: ~20 tests
-  - Hasher (SHA-1, SHA-256), PatternMatcher
+  - Hasher (13 tests - SHA-1, SHA-256), PatternMatcher (14 tests)
 - **Integration**: ~89 tests
   - Complete Git-like workflows (including checkout file/directory cleanup tests)
 

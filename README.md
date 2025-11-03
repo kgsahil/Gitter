@@ -6,7 +6,7 @@
 
 [![C++20](https://img.shields.io/badge/C%2B%2B-20-blue.svg)](https://en.cppreference.com/w/cpp/20)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
-[![Tests](https://img.shields.io/badge/tests-205%20passing-brightgreen.svg)](#testing)
+[![Tests](https://img.shields.io/badge/tests-238%20passing-brightgreen.svg)](#testing)
 
 **Built from scratch to understand Git internals**  
 *A production-grade Git clone with Git-compatible object storage, branch management, and intelligent staging*
@@ -28,7 +28,7 @@
 - 🎨 **Clean Design Patterns** - Command, Factory, Strategy, Facade, Singleton
 - 📦 **Modular Architecture** - Separated CLI, Core, and Utility layers
 - 🔒 **Type-Safe Error Handling** - `Expected<T>` monad pattern
-- 🧪 **Comprehensive Testing** - 205+ tests with GoogleTest
+- 🧪 **Comprehensive Testing** - 238+ tests with GoogleTest
 
 ---
 
@@ -613,14 +613,14 @@ gitter add file.txt
 
 <div align="center">
 
-### Test Coverage: **205+ Tests** ✅
+### Test Coverage: **238 Tests** ✅
 
 | Category | Count | Coverage |
 |----------|-------|----------|
 | **Unit Tests** | ~85 | Core components (Index, ObjectStore, TreeBuilder) |
 | **Command Tests** | ~115 | All CLI commands with edge cases |
 | **Integration Tests** | ~89 | Complete Git workflows |
-| **Total** | **205+** | **87-93% line coverage** |
+| **Total** | **238** | **87-93% line coverage** |
 
 </div>
 
@@ -680,7 +680,7 @@ See [docs/COVERAGE.md](docs/COVERAGE.md) for detailed coverage analysis.
 - ✅ Intelligent staging (fast size/mtime checks)
 - ✅ Pattern matching (*.cpp, src/**/*.h)
 - ✅ Error recovery (atomic writes, validation)
-- ✅ 205+ comprehensive tests
+- ✅ 238 comprehensive tests
 
 ### Next Steps 🚧
 - 🔲 **Diff Output** - Show file changes between commits
@@ -705,7 +705,7 @@ See [docs/COVERAGE.md](docs/COVERAGE.md) for detailed coverage analysis.
 - **[CHECKOUT_SUMMARY.md](docs/CHECKOUT_SUMMARY.md)** - Branch switching and checkout
 
 ### Testing & Quality
-- **[COVERAGE.md](docs/COVERAGE.md)** - Test coverage analysis (205+ tests)
+- **[COVERAGE.md](docs/COVERAGE.md)** - Test coverage analysis (238 tests)
 
 ### Deployment & Distribution
 - **[DOCKER_USAGE.md](docs/DOCKER_USAGE.md)** - Run Gitter with Docker (no build required!)

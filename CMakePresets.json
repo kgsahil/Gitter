@@ -10,7 +10,8 @@
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Debug",
         "CMAKE_CXX_STANDARD": "20",
-        "GITTER_STRICT": "OFF"
+        "GITTER_STRICT": "OFF",
+        "GITTER_BUILD_TESTS": "ON"
       }
     },
     {
@@ -67,7 +68,8 @@
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Release",
         "CMAKE_CXX_STANDARD": "20",
-        "GITTER_STRICT": "OFF"
+        "GITTER_STRICT": "OFF",
+        "GITTER_BUILD_TESTS": "ON"
       }
     },
     {

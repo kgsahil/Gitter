@@ -35,7 +35,7 @@
 
 [![C++20](https://img.shields.io/badge/C%2B%2B-20-blue.svg)](https://en.cppreference.com/w/cpp/20)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
-[![Tests](https://img.shields.io/badge/tests-205%20passing-brightgreen.svg)](#testing)
+[![Tests](https://img.shields.io/badge/tests-238%20passing-brightgreen.svg)](#testing)
 
 **Built from scratch to understand Git internals**  
 *A production-grade Git clone with Git-compatible object storage, branch management, and intelligent staging*
@@ -60,7 +60,7 @@
 - 🎨 **Clean Design Patterns** - Command, Factory, Strategy, Facade, Singleton
 - 📦 **Modular Architecture** - Separated CLI, Core, and Utility layers
 - 🔒 **Type-Safe Error Handling** - `Expected<T>` monad pattern
-- 🧪 **Comprehensive Testing** - 205+ tests with GoogleTest
+- 🧪 **Comprehensive Testing** - 238+ tests with GoogleTest
 
 ---
 
@@ -672,14 +672,14 @@ gitter add file.txt
 
 <div align="center">
 
-### Test Coverage: **205+ Tests** ✅
+### Test Coverage: **238 Tests** ✅
 
 | Category | Count | Coverage |
 |----------|-------|----------|
 | **Unit Tests** | ~85 | Core components (Index, ObjectStore, TreeBuilder) |
 | **Command Tests** | ~115 | All CLI commands with edge cases |
 | **Integration Tests** | ~89 | Complete Git workflows |
-| **Total** | **205+** | **87-93% line coverage** |
+| **Total** | **238** | **87-93% line coverage** |
 
 </div>
 
@@ -742,7 +742,7 @@ See [docs/COVERAGE.md](docs/COVERAGE.md) for detailed coverage analysis.
 - ✅ Intelligent staging (fast size/mtime checks)
 - ✅ Pattern matching (*.cpp, src/**/*.h)
 - ✅ Error recovery (atomic writes, validation)
-- ✅ 205+ comprehensive tests
+- ✅ 238 comprehensive tests
 
 ### Next Steps 🚧
 - 🔲 **Diff Output** - Show file changes between commits
@@ -770,7 +770,7 @@ See [docs/COVERAGE.md](docs/COVERAGE.md) for detailed coverage analysis.
 - **[CHECKOUT_SUMMARY.md](docs/CHECKOUT_SUMMARY.md)** - Branch switching and checkout
 
 ### Testing & Quality
-- **[COVERAGE.md](docs/COVERAGE.md)** - Test coverage analysis (205+ tests)
+- **[COVERAGE.md](docs/COVERAGE.md)** - Test coverage analysis (238 tests)
 
 ### Deployment & Distribution
 - **[DOCKER_USAGE.md](docs/DOCKER_USAGE.md)** - Run Gitter with Docker (no build required!)
@@ -2599,7 +2599,7 @@ docker-compose down
 
 ## Overview
 
-Gitter has comprehensive test coverage with **205 tests** covering all major components.
+Gitter has comprehensive test coverage with **238 tests** covering all major components.
 
 
 ---
@@ -2676,12 +2676,12 @@ From gcov analysis:
 
 ### Test Distribution
 
-- **Commands**: ~205 tests
-  - Init, Add, Commit (with special character filename support), Status, Log (18 tests), Restore, Reset, Checkout (23 tests: 13 unit + 10 integration), CatFile, Help
-- **Core**: ~40 tests
-  - Repository, Index (with base64 path encoding), ObjectStore, TreeBuilder
+- **Commands**: ~188 tests
+  - Init (9 tests), Add (29 tests), Commit (17 tests), Status (17 tests), Log (18 tests), Restore (13 tests), Reset (16 tests), Checkout (23 tests: 13 unit + 10 integration), CatFile, Help
+- **Core**: ~50 tests
+  - Repository (8 tests), Index (14 tests), ObjectStore (14 tests), TreeBuilder (9 tests)
 - **Util**: ~20 tests
-  - Hasher (SHA-1, SHA-256), PatternMatcher
+  - Hasher (13 tests - SHA-1, SHA-256), PatternMatcher (14 tests)
 - **Integration**: ~89 tests
   - Complete Git-like workflows (including checkout file/directory cleanup tests)
 
