@@ -7,16 +7,17 @@
 The index (`.gitter/index`) stores a **flat list** of all staged files with their full paths:
 
 ```
-src/main.cpp        <blob-hash-1>  1024  1234567890
-src/utils/helper.cpp <blob-hash-2>  512   1234567891
-README.md           <blob-hash-3>  2048  1234567892
+src/main.cpp        <blob-hash-1>  1024  mtime  33188  ctime
+src/utils/helper.cpp <blob-hash-2>  512   mtime  33188  ctime
+README.md           <blob-hash-3>  2048  mtime  33188  ctime
 ```
 
 **Key Points:**
 - Index does NOT store tree objects
-- Each entry has: `path`, `blob-hash`, `size`, `mtime`
+- Each entry has: `path`, `blob-hash`, `size`, `mtime`, `mode`, `ctime`
 - Paths are relative to repository root
 - Used for fast dirty detection (size/mtime check)
+- Mode tracks file permissions (0100644 = file, 0100755 = executable)
 
 ### 2. Tree Objects - Created at Commit Time
 
@@ -91,15 +92,12 @@ Commit message here
 ## Implementation in Gitter
 
 ### Current State
-✅ Index stores flat file list with blob hashes  
+✅ Index stores flat file list with blob hashes, mtime, mode, and ctime  
 ✅ Blob objects created and stored  
 ✅ Pattern matching (glob) for add/restore  
-
-### TODO (for commit command)
-- Build tree objects from index entries
-- Recursively create subtrees for directories
-- Store tree objects in `.gitter/objects/`
-- Create commit object pointing to root tree
+✅ Tree objects created from index entries  
+✅ Recursively creates subtrees for directories  
+✅ Commit objects created pointing to root tree
 
 ### Example Workflow
 

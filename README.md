@@ -244,8 +244,9 @@ path<TAB>hash<TAB>size<TAB>mtime<TAB>mode<TAB>ctime
 
 **Example**:
 ```
-src/main.cpp<TAB>abc123...<TAB>1024<TAB>1234567890000000000<TAB>33188<TAB>1234567890000000000
+src/main.cpp<TAB>abc123...<TAB>1024<TAB>mtime<TAB>33188<TAB>ctime
 ```
+(Note: Full timestamps in practice, shown simplified here)
 
 </div>
 
@@ -343,12 +344,16 @@ The wrapper searches build directories in this order:
 Try Gitter instantly without installing dependencies:
 
 ```bash
-# Using Docker Compose (recommended)
-docker-compose up -d
-docker-compose exec gitter bash
+# Build the image first
+docker-compose build
 
-# Inside container
+# Run interactively with welcome message!
+docker-compose run --rm gitter
+
+# You're now in a full Linux Ubuntu bash shell with welcome message displayed
+# Demo project is in /demo directory
 gitter help
+cd /demo
 gitter init demo-repo
 cd demo-repo
 echo "Hello World" > file.txt
@@ -356,13 +361,12 @@ gitter add file.txt
 gitter commit -m "Initial commit"
 gitter log
 
-# Exit and cleanup
+# Exit (container is automatically removed with --rm)
 exit
-docker-compose down
 
 # Or use Docker directly
 docker build -t gitter-cli:latest .
-docker run -it gitter-cli:latest bash
+docker run -it --rm gitter-cli:latest
 ```
 
 **See [Docker Usage Guide](docs/DOCKER_USAGE.md) for complete instructions and customization options.**
@@ -640,7 +644,7 @@ ctest --output-on-failure --verbose
 - ✅ **Commit Command**: 12+ tests (multi-message, auto-stage, duplicates)
 - ✅ **Status Command**: 8+ tests (three-way comparison)
 - ✅ **Log Command**: 18+ tests (traversal, formatting)
-- ✅ **Checkout Command**: 13+ tests (branch switching, file preservation)
+- ✅ **Checkout Command**: 23 tests (branch switching, file preservation, directory cleanup)
 - ✅ **Reset Command**: 6+ tests (HEAD~n syntax, chain traversal)
 - ✅ **Integration**: 30+ workflow tests
 
@@ -698,8 +702,7 @@ See [docs/COVERAGE.md](docs/COVERAGE.md) for detailed coverage analysis.
 - **[COMMIT_IMPLEMENTATION.md](docs/COMMIT_IMPLEMENTATION.md)** - Commit object creation
 - **[LOG_IMPLEMENTATION.md](docs/LOG_IMPLEMENTATION.md)** - Commit history traversal
 - **[RESET_IMPLEMENTATION.md](docs/RESET_IMPLEMENTATION.md)** - Reset command design
-- **[CHECKOUT_IMPLEMENTATION_PLAN.md](docs/CHECKOUT_IMPLEMENTATION_PLAN.md)** - Branch switching
-- **[STATUS_FIX.md](docs/STATUS_FIX.md)** - Three-way comparison logic
+- **[CHECKOUT_SUMMARY.md](docs/CHECKOUT_SUMMARY.md)** - Branch switching and checkout
 
 ### Testing & Quality
 - **[COVERAGE.md](docs/COVERAGE.md)** - Test coverage analysis (205+ tests)

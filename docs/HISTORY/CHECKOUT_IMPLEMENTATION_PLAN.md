@@ -477,7 +477,7 @@ TEST_F(GitWorkflowTest, BranchMerge) {
 ✅ Working tree restored from branch  
 ✅ Index matches branch commit  
 ✅ Directories created correctly  
-⏸️ Files deleted correctly (not implemented yet)  
+✅ Files deleted correctly (implemented with empty directory cleanup)  
 ✅ Files added correctly  
 ⏸️ Safety checks prevent data loss (deferred to Phase 3)  
 
@@ -489,5 +489,5 @@ The checkout implementation:
 ✅ **Phase 2 Complete:** Working tree restoration (restore files from commits)  
 ⏸️ **Phase 3 Planned:** Safety and validation (conflict detection, warnings)
 
-The `gitter checkout` command now fully supports creating and switching branches with complete working tree restoration, matching Git's core functionality. All tests pass (167 tests including BranchingWorkflow and MultipleBranches integration tests).
+The `gitter checkout` command now fully supports creating and switching branches with complete working tree restoration, matching Git's core functionality. All 23 checkout tests pass, including comprehensive branch workflows, file preservation, and directory cleanup.
 

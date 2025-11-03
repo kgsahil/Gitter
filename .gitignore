@@ -378,7 +378,7 @@ CTestTestfile.cmake
 .cmake/
 
 ## Compiled Binaries
-gitter
+# gitter  # Don't ignore the wrapper script
 gitter.exe
 gitter_tests
 gitter_tests.exe
@@ -411,3 +411,9 @@ DerivedData/
 
 ## Docker
 docker-demo/
+
+## Generated Documentation (can be regenerated)
+GITTER_COMPLETE_DOCS_NO_TOC.md
+GITTER_COMPLETE_DOCS_PDF*.md
+GITTER_COMPLETE_DOCS.pdf
+GITTER_DOCUMENTATION.md

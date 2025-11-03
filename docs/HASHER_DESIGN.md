@@ -317,8 +317,9 @@ New: path<TAB>hash<TAB>size<TAB>mtime<TAB>mode<TAB>ctime
 
 Example:
 ```
-src/main.cpp    a3b2c1...    1024    1234567890000000000    33188    1234567890000000000
+src/main.cpp    a3b2c1...    1024    mtime    33188    ctime
 ```
+(Full nanosecond timestamps in practice)
 
 ## Index to Blob Linking
 

@@ -58,7 +58,7 @@ From gcov analysis:
 - **CommitCommand.cpp**: 87.93% lines
 - **StatusCommand.cpp**: 88.28% lines
 - **LogCommand.cpp**: 80.95% lines (18 test cases)
-- **CheckoutCommand.cpp**: 82.57% lines (13 test cases) ⬆ (with file/directory cleanup)
+- **CheckoutCommand.cpp**: 82.57% lines (23 test cases: 13 unit + 10 integration) ⬆ (with file/directory cleanup)
 - **RestoreCommand.cpp**: 93.33% lines
 - **ResetCommand.cpp**: 86.27% lines
 - **InitCommand.cpp**: 91.67% lines
@@ -71,7 +71,7 @@ From gcov analysis:
 ### Test Distribution
 
 - **Commands**: ~205 tests
-  - Init, Add, Commit (with special character filename support), Status, Log (18 tests), Restore, Reset, Checkout (13 tests), CatFile, Help
+  - Init, Add, Commit (with special character filename support), Status, Log (18 tests), Restore, Reset, Checkout (23 tests: 13 unit + 10 integration), CatFile, Help
 - **Core**: ~40 tests
   - Repository, Index (with base64 path encoding), ObjectStore, TreeBuilder
 - **Util**: ~20 tests
