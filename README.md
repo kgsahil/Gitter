@@ -177,6 +177,8 @@ gitter status
 
 </div>
 
+**📊 See [UML Diagram](docs/UML_DIAGRAM.md) for a complete class diagram showing all classes, relationships, and design patterns.**
+
 ---
 
 ## 🎯 Feature Highlights
@@ -694,6 +696,7 @@ See [docs/COVERAGE.md](docs/COVERAGE.md) for detailed coverage analysis.
 ## 📚 Documentation
 
 ### Architecture & Design
+- **[UML_DIAGRAM.md](docs/UML_DIAGRAM.md)** - Complete UML class diagram showing all classes and relationships
 - **[ARCHITECTURE.md](docs/ARCHITECTURE.md)** - System architecture, design patterns, data flow
 - **[HASHER_DESIGN.md](docs/HASHER_DESIGN.md)** - Strategy pattern for hash algorithms
 - **[TREE_STORAGE.md](docs/TREE_STORAGE.md)** - How Git stores directory trees
