@@ -17,6 +17,8 @@
 #include "cli/commands/RestoreCommand.hpp"
 #include "cli/commands/CatFileCommand.hpp"
 #include "cli/commands/ResetCommand.hpp"
+#include "cli/commands/SearchCommand.hpp"
+#include "cli/commands/DiffCommand.hpp"
 
 using namespace gitter;
 
@@ -32,6 +34,8 @@ static void registerCommands() {
     f.registerCreator("restore", [] { return std::make_unique<RestoreCommand>(); });
     f.registerCreator("cat-file", [] { return std::make_unique<CatFileCommand>(); });
     f.registerCreator("reset", [] { return std::make_unique<ResetCommand>(); });
+    f.registerCreator("search", [] { return std::make_unique<SearchCommand>(); });
+    f.registerCreator("diff", [] { return std::make_unique<DiffCommand>(); });
 }
 
 int main(int argc, char** argv) {

@@ -69,14 +69,19 @@ add_library(gitter_lib
   src/cli/commands/RestoreCommand.cpp
   src/cli/commands/CatFileCommand.cpp
   src/cli/commands/ResetCommand.cpp
+  src/cli/commands/SearchCommand.cpp
+  src/cli/commands/DiffCommand.cpp
   src/core/ObjectStore.cpp
+  src/core/SearchService.cpp
   src/core/Index.cpp
   src/core/TreeBuilder.cpp
   src/core/Repository.cpp
+  src/core/DiffEngine.cpp
 )
 
 target_include_directories(gitter_lib PUBLIC
   ${CMAKE_CURRENT_SOURCE_DIR}/src
+  ${CMAKE_CURRENT_SOURCE_DIR}/third_party/diff_match_patch
 )
 
 # Find and link zlib
@@ -112,10 +117,12 @@ if(GITTER_BUILD_TESTS)
     test/commands/test_restore.cpp
     test/commands/test_reset.cpp
     test/commands/test_checkout.cpp
+    test/commands/test_diff.cpp
     test/core/test_repository.cpp
     test/core/test_index.cpp
     test/core/test_objectstore.cpp
     test/core/test_treebuilder.cpp
+    test/core/test_diffengine.cpp
     test/util/test_hasher.cpp
     test/util/test_patternmatcher.cpp
     test/integration/test_git_workflow.cpp

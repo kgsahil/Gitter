@@ -12,6 +12,21 @@ Repository& Repository::instance() {
     return repo;
 }
 
+bool Repository::isInitialized(const fs::path& start) {
+    std::error_code ec;
+    fs::path cur = fs::absolute(start);
+    while (true) {
+        fs::path gd = cur / ".gitter";
+        if (fs::exists(gd, ec) && fs::is_directory(gd, ec)) {
+            return true;
+        }
+        if (!cur.has_parent_path() || cur == cur.parent_path()) {
+            return false;
+        }
+        cur = cur.parent_path();
+    }
+}
+
 Expected<void> Repository::init(const fs::path& path) {
     fs::path root = fs::absolute(path);
     fs::path gd = root / ".gitter";
@@ -35,14 +50,15 @@ Expected<void> Repository::init(const fs::path& path) {
 
 Expected<fs::path> Repository::discoverRoot(const fs::path& start) const {
     fs::path cur = fs::absolute(start);
+    if (!isInitialized(cur)) {
+        return Error{ErrorCode::NotARepository, "Not inside a Gitter repository"};
+    }
+
     std::error_code ec;
     while (true) {
         fs::path gd = cur / ".gitter";
         if (fs::exists(gd, ec) && fs::is_directory(gd, ec)) {
             return cur;
-        }
-        if (!cur.has_parent_path() || cur == cur.parent_path()) {
-            return Error{ErrorCode::NotARepository, "Not inside a Gitter repository"};
         }
         cur = cur.parent_path();
     }

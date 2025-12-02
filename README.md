@@ -18,10 +18,11 @@
 ## ✨ Key Features
 
 ### 🎯 Core Functionality
-- ✅ **Full Git Workflow** - Init, add, commit, status, log, checkout, reset
+- ✅ **Full Git Workflow** - Init, add, commit, status, log, checkout, reset, diff
 - ✅ **Git-Compatible Storage** - SHA-1 hashing, zlib compression, content-addressable objects
 - ✅ **Branch Management** - Create, switch, and manage multiple branches
 - ✅ **Intelligent Staging** - Fast size/mtime checks, glob patterns, auto-staging
+- ✅ **Unified Diff Output** - Line-by-line diffs with context using diff-match-patch
 - ✅ **Reliable & Robust** - Atomic writes, error recovery, input validation
 
 ### 🏗️ Architecture Excellence
@@ -45,6 +46,9 @@
 | **Commit** | `gitter commit -am "msg"` | Auto-stage & commit |
 | **Info** | `gitter status` | Show working tree status |
 | **Info** | `gitter log` | Display commit history |
+| **Info** | `gitter diff` | Show changes between working tree and index |
+| **Info** | `gitter diff --cached` | Show changes between index and HEAD |
+| **Info** | `gitter search <term> [--index]` | Search working tree or staged+HEAD files |
 | **Branch** | `gitter checkout <branch>` | Switch to branch |
 | **Branch** | `gitter checkout -b <branch>` | Create & switch branch |
 | **Undo** | `gitter reset HEAD~1` | Reset to previous commit |
@@ -436,6 +440,44 @@ gitter restore --staged src/*.h
 ```
 </details>
 
+<details>
+<summary><b>View Differences</b> - Compare working tree, index, and HEAD</summary>
+
+```bash
+# Show changes between working tree and index (unstaged changes)
+gitter diff
+
+# Show changes between index and HEAD (staged changes)
+gitter diff --cached
+# or
+gitter diff --staged
+
+# Example output:
+# diff --git a/src/main.cpp b/src/main.cpp
+# index abc1234..def5678 100644
+# @@ -10,7 +10,8 @@
+#  #include <iostream>
+#  
+#  int main() {
+# -    std::cout << "Hello\n";
+# +    std::cout << "Hello World\n";
+#      return 0;
+#  }
+```
+
+**Diff Modes:**
+- `gitter diff` - Shows unstaged changes (working tree vs index)
+- `gitter diff --cached` - Shows staged changes (index vs HEAD)
+
+**Output Format:**
+- Unified diff format (Git-compatible)
+- Line-by-line changes with context
+- Hunk headers showing line ranges
+- Uses google/diff-match-patch for robust diff algorithms
+
+**Note:** Commit comparisons (`gitter diff <commit>`, `gitter diff <commit1> <commit2>`) are planned for future releases.
+</details>
+
 ### 🔹 Commits & History
 
 <details>
@@ -670,7 +712,8 @@ See [docs/COVERAGE.md](docs/COVERAGE.md) for detailed coverage analysis.
 | **Object Storage** | ✅ Complete | Blobs, trees, commits (Git-compatible) |
 | **Pattern Matching** | ✅ Complete | Glob patterns, wildcards |
 | **Reliability** | ✅ Complete | Atomic writes, error recovery |
-| **Advanced Features** | 🚧 Planned | Diff, merge, remotes, tags |
+| **Diff Command** | ✅ Complete | Working tree vs index, index vs HEAD |
+| **Advanced Features** | 🚧 Planned | Commit comparisons, merge, remotes, tags |
 
 </div>
 
@@ -678,6 +721,7 @@ See [docs/COVERAGE.md](docs/COVERAGE.md) for detailed coverage analysis.
 - ✅ Full Git workflow (init, add, commit, status, log)
 - ✅ Branch management (create, switch, checkout)
 - ✅ History traversal (reset HEAD~n)
+- ✅ Diff command (working tree vs index, index vs HEAD)
 - ✅ Git-compatible storage (SHA-1, zlib, content-addressed)
 - ✅ Intelligent staging (fast size/mtime checks)
 - ✅ Pattern matching (*.cpp, src/**/*.h)
@@ -685,7 +729,7 @@ See [docs/COVERAGE.md](docs/COVERAGE.md) for detailed coverage analysis.
 - ✅ 238 comprehensive tests
 
 ### Next Steps 🚧
-- 🔲 **Diff Output** - Show file changes between commits
+- 🔲 **Commit Comparisons** - `gitter diff <commit>`, `gitter diff <commit1> <commit2>`
 - 🔲 **Merge Commits** - Basic three-way merge
 - 🔲 **Remote Operations** - push/pull/fetch
 - 🔲 **Tags** - Annotated tags for releases
@@ -700,12 +744,16 @@ See [docs/COVERAGE.md](docs/COVERAGE.md) for detailed coverage analysis.
 - **[ARCHITECTURE.md](docs/ARCHITECTURE.md)** - System architecture, design patterns, data flow
 - **[HASHER_DESIGN.md](docs/HASHER_DESIGN.md)** - Strategy pattern for hash algorithms
 - **[TREE_STORAGE.md](docs/TREE_STORAGE.md)** - How Git stores directory trees
+- **[SEARCH_IMPLEMENTATION_PLAN.md](docs/SEARCH_IMPLEMENTATION_PLAN.md)** - Current search command design
+- **[SEARCH_IMPLEMENTATION_GUIDE.md](docs/SEARCH_IMPLEMENTATION_GUIDE.md)** - Step-by-step implementation notes
+ - **[DIFF_IMPLEMENTATION_PLAN.md](docs/DIFF_IMPLEMENTATION_PLAN.md)** - Diff command architecture and rollout plan
 
 ### Implementation Guides
 - **[COMMIT_IMPLEMENTATION.md](docs/COMMIT_IMPLEMENTATION.md)** - Commit object creation
 - **[LOG_IMPLEMENTATION.md](docs/LOG_IMPLEMENTATION.md)** - Commit history traversal
 - **[RESET_IMPLEMENTATION.md](docs/RESET_IMPLEMENTATION.md)** - Reset command design
 - **[CHECKOUT_SUMMARY.md](docs/CHECKOUT_SUMMARY.md)** - Branch switching and checkout
+ - **[DIFF_SUMMARY.md](docs/DIFF_SUMMARY.md)** - Diff command usage and behavior
 
 ### Testing & Quality
 - **[COVERAGE.md](docs/COVERAGE.md)** - Test coverage analysis (238 tests)

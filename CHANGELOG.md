@@ -4,6 +4,46 @@ All notable changes to the Gitter project will be documented in this file.
 
 ## [Unreleased]
 
+### Added - Diff Command (2025-01-XX)
+
+#### Diff Functionality
+- ✅ **Working Tree vs Index**: `gitter diff` shows unstaged changes
+- ✅ **Index vs HEAD**: `gitter diff --cached` or `--staged` shows staged changes
+- ✅ **Unified Diff Format**: Git-compatible output with hunk headers and context lines
+- ✅ **Diff-Match-Patch Integration**: Uses google/diff-match-patch library for robust diff algorithms
+- ✅ **Line-by-Line Diffs**: Shows additions (+), deletions (-), and context lines
+- ✅ **Fast Path Optimization**: Uses size/mtime checks before expensive hashing (like status command)
+
+#### Implementation Details
+- Created `DiffEngine` class in `src/core/` wrapping diff-match-patch
+- Integrated diff-match-patch via CMake FetchContent
+- Converts diff-match-patch character-level diffs to line-oriented unified format
+- Handles modified, deleted, and new files
+- Groups changes into hunks with 3 lines of context
+
+#### Architecture
+- Follows existing command pattern (CLI → Core → Util)
+- Uses `Repository`, `Index`, and `ObjectStore` like other commands
+- Maintains consistent error handling with `Expected<T>`
+
+#### Files Added
+- `src/cli/commands/DiffCommand.hpp` - Command interface
+- `src/cli/commands/DiffCommand.cpp` - Command implementation
+- `src/core/DiffEngine.hpp` - Diff engine interface
+- `src/core/DiffEngine.cpp` - Diff engine implementation using diff-match-patch
+
+#### Files Modified
+- `src/main.cpp` - Registered diff command
+- `CMakeLists.txt` - Added diff-match-patch dependency and DiffEngine.cpp
+- `README.md` - Added diff command documentation and examples
+
+#### Future Work (TODO)
+- 🔲 Commit comparisons: `gitter diff <commit>`, `gitter diff <commit1> <commit2>`
+- 🔲 Path filters: `gitter diff [--] [<path>...]`
+- 🔲 Additional flags: `--name-only`, `--stat`
+- 🔲 Binary file detection and handling
+- 🔲 Colour output support
+
 ### Changed - UI Improvements and Developer Experience (2025-11-02)
 
 #### Help Command Alignment

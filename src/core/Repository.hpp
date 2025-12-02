@@ -136,6 +136,13 @@ public:
      */
     static Expected<std::string> getBranchCommit(const std::filesystem::path& root, const std::string& branchName);
 
+    /**
+     * @brief Check if the given path (or any parent) contains an initialized Gitter repository.
+     * @param start Starting directory to examine
+     * @return true if a `.gitter` directory exists at or above the path
+     */
+    static bool isInitialized(const std::filesystem::path& start);
+
 private:
     Repository() = default;
 };

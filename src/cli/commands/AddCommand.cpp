@@ -101,6 +101,9 @@ static Expected<void> addFileToIndex(const fs::path& filePath, const fs::path& r
  * Automatically skips .gitter/ directory and non-existent paths.
  */
 Expected<void> AddCommand::execute(const AppContext&, const std::vector<std::string>& args) {
+    if (!Repository::instance().isInitialized(fs::current_path())) {
+        return Error{ErrorCode::NotARepository, "Not inside a Gitter repository"};
+    }
     if (args.empty()) {
         return Error{ErrorCode::InvalidArgs, "add: missing <pathspec>"};
     }
