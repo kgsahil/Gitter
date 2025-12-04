@@ -136,6 +136,15 @@ public:
      */
     static Expected<std::string> getBranchCommit(const std::filesystem::path& root, const std::string& branchName);
 
+    /**
+     * @brief Find the best common ancestor (merge base) between two commits
+     * @param root Repository root path
+     * @param commit1 First commit hash
+     * @param commit2 Second commit hash
+     * @return Commit hash of the merge base, or error if not found
+     */
+    static Expected<std::string> getMergeBase(const std::filesystem::path& root, const std::string& commit1, const std::string& commit2);
+
 private:
     Repository() = default;
 };

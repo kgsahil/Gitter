@@ -69,6 +69,7 @@ add_library(gitter_lib
   src/cli/commands/RestoreCommand.cpp
   src/cli/commands/CatFileCommand.cpp
   src/cli/commands/ResetCommand.cpp
+  src/cli/commands/MergeBaseCommand.cpp
   src/core/ObjectStore.cpp
   src/core/Index.cpp
   src/core/TreeBuilder.cpp

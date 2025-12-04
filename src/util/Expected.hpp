@@ -14,7 +14,8 @@ enum class ErrorCode {
     CorruptObject,
     RefNotFound,
     EmptyIndex,
-    InternalError
+    InternalError,
+    ObjectNotFound
 };
 
 struct Error {

@@ -2,6 +2,12 @@
 
 #include <fstream>
 #include <vector>
+#include <unordered_set>
+#include <queue>
+
+#include "core/ObjectStore.hpp"
+#include "core/CommitObject.hpp"
+#include "util/IHasher.hpp"
 
 namespace fs = std::filesystem;
 
@@ -260,6 +266,65 @@ Expected<std::string> Repository::getBranchCommit(const fs::path& root, const st
     }
     
     return hash;
+}
+
+Expected<std::string> Repository::getMergeBase(const fs::path& root, const std::string& commit1, const std::string& commit2) {
+    ObjectStore store(root);
+    
+    // BFS from commit1 to find all ancestors
+    std::unordered_set<std::string> ancestors1;
+    std::queue<std::string> queue1;
+    
+    queue1.push(commit1);
+    ancestors1.insert(commit1);
+    
+    while(!queue1.empty()) {
+        std::string current = queue1.front();
+        queue1.pop();
+        
+        try {
+            CommitObject commit = store.readCommit(current);
+            for (const auto& parent : commit.parentHashes) {
+                if (ancestors1.find(parent) == ancestors1.end()) {
+                    ancestors1.insert(parent);
+                    queue1.push(parent);
+                }
+            }
+        } catch (const std::exception&) {
+            // If we can't read a commit, return error
+            return Error{ErrorCode::ObjectNotFound, "Failed to read commit: " + current};
+        }
+    }
+    
+    // BFS from commit2 to find the first ancestor that is in ancestors1
+    std::queue<std::string> queue2;
+    std::unordered_set<std::string> visited2;
+    
+    queue2.push(commit2);
+    visited2.insert(commit2);
+    
+    while(!queue2.empty()) {
+        std::string current = queue2.front();
+        queue2.pop();
+        
+        if (ancestors1.find(current) != ancestors1.end()) {
+            return current;
+        }
+        
+        try {
+            CommitObject commit = store.readCommit(current);
+            for (const auto& parent : commit.parentHashes) {
+                if (visited2.find(parent) == visited2.end()) {
+                    visited2.insert(parent);
+                    queue2.push(parent);
+                }
+            }
+        } catch (const std::exception&) {
+                return Error{ErrorCode::ObjectNotFound, "Failed to read commit: " + current};
+        }
+    }
+    
+    return Error{ErrorCode::ObjectNotFound, "No common ancestor found"};
 }
 
 }
